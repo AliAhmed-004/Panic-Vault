@@ -3,7 +3,7 @@ import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:pointycastle/api.dart';
-import 'package:pointycastle/block/aes_fast.dart';
+import 'package:pointycastle/block/aes.dart';
 import 'package:pointycastle/block/modes/gcm.dart';
 
 class PasswordEncryptionService {
@@ -14,7 +14,7 @@ class PasswordEncryptionService {
     final plaintextBytes = utf8.encode(plaintext);
     final iv = Uint8List.fromList(List.generate(12, (_) => Random.secure().nextInt(256)));
     
-    final cipher = GCMBlockCipher(AESFastEngine())
+    final cipher = GCMBlockCipher(AESEngine())
       ..init(true, AEADParameters(KeyParameter(vaultKey), 128, iv, Uint8List(0)));
 
     final ciphertext = cipher.process(Uint8List.fromList(plaintextBytes));
@@ -43,7 +43,7 @@ class PasswordEncryptionService {
     ciphertextWithTag.setAll(0, ciphertext);
     ciphertextWithTag.setAll(ciphertext.length, tag);
 
-    final cipher = GCMBlockCipher(AESFastEngine())
+    final cipher = GCMBlockCipher(AESEngine())
       ..init(false, AEADParameters(KeyParameter(vaultKey), 128, iv, Uint8List(0)));
 
     final decryptedBytes = cipher.process(ciphertextWithTag);

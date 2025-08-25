@@ -51,19 +51,19 @@ class _HomePageState extends State<HomePage> {
             },
             tooltip: 'Search Passwords',
           ),
-                      IconButton(
-              icon: const Icon(Icons.logout),
-              onPressed: () {
-                // Clear vault key from password provider
-                context.read<PasswordProvider>().clearVaultKey();
-                // Logout from auth provider
-                context.read<AuthProvider>().logout();
-                Navigator.of(context).pushReplacement(
-                  MaterialPageRoute(builder: (context) => const AuthPage()),
-                );
-              },
-              tooltip: 'Lock Vault',
-            ),
+          IconButton(
+            icon: const Icon(Icons.logout),
+            onPressed: () {
+              // Clear vault key from password provider
+              context.read<PasswordProvider>().clearVaultKey();
+              // Logout from auth provider
+              context.read<AuthProvider>().logout();
+              Navigator.of(context).pushReplacement(
+                MaterialPageRoute(builder: (context) => const AuthPage()),
+              );
+            },
+            tooltip: 'Lock Vault',
+          ),
         ],
       ),
       body: Container(
@@ -317,34 +317,221 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _addSamplePassword(BuildContext context) {
-    final provider = context.read<PasswordProvider>();
-    final samplePassword = PasswordEntry(
-      id: provider.generateId(),
-      title: 'Sample Website',
-      username: 'user@example.com',
-      password: 'secure_password_123',
-      url: 'https://example.com',
-      notes: 'This is a sample password entry',
-      tags: ['sample', 'demo'],
-    );
+    _showAddPasswordDialog(context);
+  }
 
-    provider.addPassword(samplePassword).then((success) {
-      if (success) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Sample password added successfully!'),
-            backgroundColor: Colors.green,
-          ),
+  void _showAddPasswordDialog(BuildContext context) {
+    final titleController = TextEditingController();
+    final usernameController = TextEditingController();
+    final passwordController = TextEditingController();
+    final urlController = TextEditingController();
+    final notesController = TextEditingController();
+    final tagsController = TextEditingController();
+    bool isPasswordVisible = false;
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: const Text(
+                'Add New Password',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              backgroundColor: Colors.grey[850],
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Title field
+                    TextField(
+                      controller: titleController,
+                      style: const TextStyle(color: Colors.white),
+                      decoration: const InputDecoration(
+                        labelText: 'Title *',
+                        labelStyle: TextStyle(color: Colors.grey),
+                        enabledBorder: OutlineInputBorder(
+                          borderSide: BorderSide(color: Colors.grey),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderSide: BorderSide(color: Colors.blue),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    
+                    // Username field
+                    TextField(
+                      controller: usernameController,
+                      style: const TextStyle(color: Colors.white),
+                      decoration: const InputDecoration(
+                        labelText: 'Username *',
+                        labelStyle: TextStyle(color: Colors.grey),
+                        enabledBorder: OutlineInputBorder(
+                          borderSide: BorderSide(color: Colors.grey),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderSide: BorderSide(color: Colors.blue),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    
+                    // Password field with visibility toggle
+                    TextField(
+                      controller: passwordController,
+                      obscureText: !isPasswordVisible,
+                      style: const TextStyle(color: Colors.white),
+                      decoration: InputDecoration(
+                        labelText: 'Password *',
+                        labelStyle: const TextStyle(color: Colors.grey),
+                        enabledBorder: const OutlineInputBorder(
+                          borderSide: BorderSide(color: Colors.grey),
+                        ),
+                        focusedBorder: const OutlineInputBorder(
+                          borderSide: BorderSide(color: Colors.blue),
+                        ),
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            isPasswordVisible ? Icons.visibility : Icons.visibility_off,
+                            color: Colors.grey,
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              isPasswordVisible = !isPasswordVisible;
+                            });
+                          },
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    
+                    // URL field
+                    TextField(
+                      controller: urlController,
+                      style: const TextStyle(color: Colors.white),
+                      decoration: const InputDecoration(
+                        labelText: 'URL (optional)',
+                        labelStyle: TextStyle(color: Colors.grey),
+                        enabledBorder: OutlineInputBorder(
+                          borderSide: BorderSide(color: Colors.grey),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderSide: BorderSide(color: Colors.blue),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    
+                    // Notes field
+                    TextField(
+                      controller: notesController,
+                      maxLines: 3,
+                      style: const TextStyle(color: Colors.white),
+                      decoration: const InputDecoration(
+                        labelText: 'Notes (optional)',
+                        labelStyle: TextStyle(color: Colors.grey),
+                        enabledBorder: OutlineInputBorder(
+                          borderSide: BorderSide(color: Colors.grey),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderSide: BorderSide(color: Colors.blue),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    
+                    // Tags field
+                    TextField(
+                      controller: tagsController,
+                      style: const TextStyle(color: Colors.white),
+                      decoration: const InputDecoration(
+                        labelText: 'Tags (optional, comma-separated)',
+                        labelStyle: TextStyle(color: Colors.grey),
+                        enabledBorder: OutlineInputBorder(
+                          borderSide: BorderSide(color: Colors.grey),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderSide: BorderSide(color: Colors.blue),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text(
+                    'Cancel',
+                    style: TextStyle(color: Colors.grey),
+                  ),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    // Validate required fields
+                    if (titleController.text.trim().isEmpty ||
+                        usernameController.text.trim().isEmpty ||
+                        passwordController.text.trim().isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Please fill in all required fields'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                      return;
+                    }
+
+                    // Create password entry
+                    final provider = context.read<PasswordProvider>();
+                    final newPassword = PasswordEntry(
+                      id: provider.generateId(),
+                      title: titleController.text.trim(),
+                      username: usernameController.text.trim(),
+                      password: passwordController.text.trim(),
+                      url: urlController.text.trim(),
+                      notes: notesController.text.trim(),
+                      tags: tagsController.text.trim().isEmpty
+                          ? []
+                          : tagsController.text.trim().split(',').map((tag) => tag.trim()).where((tag) => tag.isNotEmpty).toList(),
+                    );
+
+                    // Add password
+                    provider.addPassword(newPassword).then((success) {
+                      Navigator.of(context).pop();
+                      if (success) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Password added successfully!'),
+                            backgroundColor: Colors.green,
+                          ),
+                        );
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Failed to add password: ${provider.error}'),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
+                      }
+                    });
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue,
+                    foregroundColor: Colors.white,
+                  ),
+                  child: const Text('Add Password'),
+                ),
+              ],
+            );
+          },
         );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to add password: ${provider.error}'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    });
+      },
+    );
   }
 
   void _viewPassword(BuildContext context, PasswordEntry password) {
@@ -398,7 +585,7 @@ class _HomePageState extends State<HomePage> {
           ),
           Expanded(
             child: Text(
-              isPassword ? '••••••••' : value,
+              value,
               style: const TextStyle(
                 color: Colors.white,
                 fontSize: 12,
