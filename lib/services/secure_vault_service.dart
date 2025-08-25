@@ -7,15 +7,15 @@ import 'package:crypto/crypto.dart' as crypto;
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:pointycastle/api.dart';
-import 'package:pointycastle/block/aes_fast.dart';
+import 'package:pointycastle/block/aes.dart';
 import 'package:pointycastle/block/modes/gcm.dart';
-import 'package:pointycastle/digests/sha256.dart';
-import 'package:pointycastle/key_derivators/api.dart';
-import 'package:pointycastle/key_derivators/pbkdf2.dart';
-import 'package:pointycastle/macs/hmac.dart';
+import 'package:cryptography/cryptography.dart' as cryptography;
 
 // --- Security Constants ---
-const int PBKDF2_ITERATIONS = 100000; // For master key derivation
+// Argon2id parameters (balance security and performance)
+const int ARGON2_MEMORY_KIB = 131072; // 128 MiB
+const int ARGON2_ITERATIONS = 3;
+const int ARGON2_PARALLELISM = 2;
 const int MAX_LOGIN_ATTEMPTS = 5;
 const int LOCKOUT_DURATION_SECONDS = 300; // 5 minutes
 const int VAULT_KEY_SIZE = 32;
@@ -54,36 +54,42 @@ class SecureVaultService {
     return result == 0;
   }
 
-  // Improved Key Derivation
+  // Master key derivation using Argon2id
   Future<Uint8List> _deriveMasterKey(String masterPassword, Uint8List salt) async {
-    // Run heavy cryptographic operations on a background thread
+    // Run heavy cryptographic operations on a background isolate
     return await compute(_performKeyDerivation, {
       'password': masterPassword,
       'salt': salt,
-      'iterations': PBKDF2_ITERATIONS,
       'keySize': VAULT_KEY_SIZE,
     });
   }
 
-  // Static method for compute function
-  static Uint8List _performKeyDerivation(Map<String, dynamic> params) {
+  // Static method for compute function - Argon2id
+  static Future<Uint8List> _performKeyDerivation(Map<String, dynamic> params) async {
     final password = params['password'] as String;
     final salt = params['salt'] as Uint8List;
-    final iterations = params['iterations'] as int;
     final keySize = params['keySize'] as int;
-    
-    final kdf = PBKDF2KeyDerivator(HMac(SHA256Digest(), 64))
-      ..init(Pbkdf2Parameters(salt, iterations, keySize));
-    
-    final key = kdf.process(Uint8List.fromList(utf8.encode(password)));
-    
+
+    final algorithm = cryptography.Argon2id(
+      memory: ARGON2_MEMORY_KIB,
+      iterations: ARGON2_ITERATIONS,
+      parallelism: ARGON2_PARALLELISM,
+      hashLength: keySize,
+    );
+
+    final secretKey = await algorithm.deriveKey(
+      secretKey: cryptography.SecretKey(utf8.encode(password)),
+      nonce: salt,
+    );
+    final bytes = await secretKey.extractBytes();
+
     // Clear the password from memory immediately
     final passwordBytes = Uint8List.fromList(utf8.encode(password));
     for (int i = 0; i < passwordBytes.length; i++) {
       passwordBytes[i] = 0;
     }
-    
-    return key;
+
+    return Uint8List.fromList(bytes);
   }
 
 
@@ -91,7 +97,7 @@ class SecureVaultService {
   // Secure AES-GCM Encryption
   Uint8List _encryptAes(Uint8List key, Uint8List plaintext) {
     final iv = Uint8List.fromList(List.generate(12, (_) => Random.secure().nextInt(256)));
-    final cipher = GCMBlockCipher(AESFastEngine())
+    final cipher = GCMBlockCipher(AESEngine())
       ..init(true, AEADParameters(KeyParameter(key), 128, iv, Uint8List(0)));
 
     final ciphertext = cipher.process(plaintext);
@@ -120,7 +126,7 @@ class SecureVaultService {
     ciphertextWithTag.setAll(0, ciphertext);
     ciphertextWithTag.setAll(ciphertext.length, tag);
 
-    final cipher = GCMBlockCipher(AESFastEngine())
+    final cipher = GCMBlockCipher(AESEngine())
       ..init(false, AEADParameters(KeyParameter(key), 128, iv, Uint8List(0)));
 
     final result = cipher.process(ciphertextWithTag);

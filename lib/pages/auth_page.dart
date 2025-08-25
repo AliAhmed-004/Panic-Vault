@@ -98,7 +98,7 @@ class _AuthPageState extends State<AuthPage> {
     try {
       // Show progress message
       setState(() {
-        _successMessage = 'Unlocking vault... This should be quick!';
+        _successMessage = 'Unlocking vault...';
       });
       
       final result = await _secureVaultService.unlockVault(_passwordController.text);
@@ -115,7 +115,7 @@ class _AuthPageState extends State<AuthPage> {
         }
       } else if (result.locked) {
         setState(() {
-          _errorMessage = 'Too many failed attempts. Try again in ${result.lockoutSeconds} seconds.';
+          _errorMessage = 'Too many failed attempts. Try again in ${result.lockoutSeconds} seconds (${result.lockoutSeconds! / 60} minutes).';
         });
       } else if (result.error != null) {
         setState(() {

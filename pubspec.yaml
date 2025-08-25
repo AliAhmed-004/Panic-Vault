@@ -38,6 +38,7 @@ dependencies:
   # Security and cryptography
   crypto: ^3.0.3
   pointycastle: ^3.7.3
+  cryptography: ^2.7.0
   
   # Secure storage
   flutter_secure_storage: ^9.0.0
