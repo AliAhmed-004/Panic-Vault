@@ -66,10 +66,12 @@ class SecureVaultService {
 
   // Static method for compute function - Argon2id
   static Future<Uint8List> _performKeyDerivation(Map<String, dynamic> params) async {
+    // Extract information from params
     final password = params['password'] as String;
     final salt = params['salt'] as Uint8List;
     final keySize = params['keySize'] as int;
 
+    // Create the algorithm
     final algorithm = cryptography.Argon2id(
       memory: ARGON2_MEMORY_KIB,
       iterations: ARGON2_ITERATIONS,
@@ -77,6 +79,7 @@ class SecureVaultService {
       hashLength: keySize,
     );
 
+    // Use the algorithm to create the secret key
     final secretKey = await algorithm.deriveKey(
       secretKey: cryptography.SecretKey(utf8.encode(password)),
       nonce: salt,
