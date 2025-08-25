@@ -4,13 +4,19 @@ import '../services/secure_vault_service.dart';
 class AuthProvider extends ChangeNotifier {
   SecureVaultService? _vaultService;
   bool _isUnlocked = false;
+  VaultType? _vaultType;
+  Uint8List? _encryptionContext;
 
   SecureVaultService? get vaultService => _vaultService;
   bool get isUnlocked => _isUnlocked;
+  VaultType? get vaultType => _vaultType;
+  Uint8List? get encryptionContext => _encryptionContext;
 
   void unlockVault(SecureVaultService vaultService) {
     _vaultService = vaultService;
     _isUnlocked = true;
+    _vaultType = vaultService.getCurrentVaultType();
+    _encryptionContext = vaultService.getCurrentEncryptionContext();
     notifyListeners();
   }
 
@@ -18,6 +24,8 @@ class AuthProvider extends ChangeNotifier {
     _vaultService?.lockVault();
     _vaultService = null;
     _isUnlocked = false;
+    _vaultType = null;
+    _encryptionContext = null;
     notifyListeners();
   }
 

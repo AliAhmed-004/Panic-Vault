@@ -61,7 +61,8 @@ class _AuthPageState extends State<AuthPage> {
         _successMessage = 'Initializing vault... This may take a moment for security.';
       });
       
-      final success = await _secureVaultService.initializeVault(_passwordController.text);
+      // Initialize REAL vault by default here. Decoy can be added later via settings
+      final success = await _secureVaultService.initializeVault(VaultType.real, _passwordController.text);
       
       if (success) {
         setState(() {
@@ -101,7 +102,7 @@ class _AuthPageState extends State<AuthPage> {
         _successMessage = 'Unlocking vault...';
       });
       
-      final result = await _secureVaultService.unlockVault(_passwordController.text);
+      final result = await _secureVaultService.unlockVaultAny(_passwordController.text);
       
       if (result.success) {
         // Set the vault as unlocked in the provider

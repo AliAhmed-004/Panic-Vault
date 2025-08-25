@@ -1,10 +1,12 @@
 import 'package:flutter/foundation.dart';
 import '../models/password_entry.dart';
 import '../services/password_database_service.dart';
+import '../services/secure_vault_service.dart';
 
 class PasswordProvider extends ChangeNotifier {
   final PasswordDatabaseService _databaseService = PasswordDatabaseService();
   Uint8List? _currentVaultKey;
+  Uint8List? _encryptionContext;
   
   List<PasswordEntry> _passwords = [];
   bool _isLoading = false;
@@ -17,13 +19,18 @@ class PasswordProvider extends ChangeNotifier {
   int get passwordCount => _passwords.length;
 
   // Set vault key (called when vault is unlocked)
-  void setVaultKey(Uint8List vaultKey) {
+  void setVaultKey(Uint8List vaultKey, {VaultType? type, Uint8List? encryptionContext}) {
     _currentVaultKey = vaultKey;
+    _encryptionContext = encryptionContext;
+    // configure DB
+    final dbType = (type == VaultType.decoy) ? ActiveVaultDb.decoy : ActiveVaultDb.real;
+    _databaseService.setActiveVault(dbType, aad: _encryptionContext);
   }
 
   // Clear vault key (called when vault is locked)
   void clearVaultKey() {
     _currentVaultKey = null;
+    _encryptionContext = null;
     _passwords.clear();
     notifyListeners();
   }
