@@ -4,27 +4,40 @@ import 'package:path/path.dart';
 import '../models/password_entry.dart';
 import 'password_encryption_service.dart';
 
+enum ActiveVaultDb { real, decoy }
+
 class PasswordDatabaseService {
-  static Database? _database;
+  static final Map<ActiveVaultDb, Database> _dbByVault = {};
+  ActiveVaultDb _activeVault = ActiveVaultDb.real;
   final PasswordEncryptionService _encryptionService = PasswordEncryptionService();
+  Uint8List? _aad;
 
   // Get database instance
   Future<Database> get database async {
-    if (_database != null) return _database!;
-    _database = await _initDatabase();
-    return _database!;
+    final current = _dbByVault[_activeVault];
+    if (current != null) return current;
+    final db = await _initDatabase();
+    _dbByVault[_activeVault] = db;
+    return db;
   }
 
   // Initialize database
   Future<Database> _initDatabase() async {
     final databasePath = await getDatabasesPath();
-    final path = join(databasePath, 'panic_vault_passwords.db');
+    final suffix = _activeVault == ActiveVaultDb.real ? 'real' : 'decoy';
+    final path = join(databasePath, 'panic_vault_passwords_' + suffix + '.db');
 
     return await openDatabase(
       path,
       version: 1,
       onCreate: _createDatabase,
     );
+  }
+
+  // Set the active vault DB and AAD (must be called after unlock)
+  void setActiveVault(ActiveVaultDb vault, {Uint8List? aad}) {
+    _activeVault = vault;
+    _aad = aad;
   }
 
   // Create database tables
@@ -51,7 +64,7 @@ class PasswordDatabaseService {
     try {
       // Convert to map and encrypt
       final entryMap = entry.toMap();
-      final encryptedEntry = _encryptionService.encryptPasswordEntry(entryMap, vaultKey);
+      final encryptedEntry = _encryptionService.encryptPasswordEntry(entryMap, vaultKey, aad: _aad);
 
       // Insert or update in database
       await db.insert(
@@ -86,7 +99,7 @@ class PasswordDatabaseService {
       if (results.isEmpty) return null;
 
       // Decrypt the entry
-      final decryptedEntry = _encryptionService.decryptPasswordEntry(results.first, vaultKey);
+      final decryptedEntry = _encryptionService.decryptPasswordEntry(results.first, vaultKey, aad: _aad);
       return PasswordEntry.fromMap(decryptedEntry);
     } catch (e) {
       print('Error retrieving password: $e');
@@ -107,7 +120,7 @@ class PasswordDatabaseService {
       final List<PasswordEntry> passwords = [];
       for (final encryptedEntry in results) {
         try {
-          final decryptedEntry = _encryptionService.decryptPasswordEntry(encryptedEntry, vaultKey);
+          final decryptedEntry = _encryptionService.decryptPasswordEntry(encryptedEntry, vaultKey, aad: _aad);
           passwords.add(PasswordEntry.fromMap(decryptedEntry));
         } catch (e) {
           print('Error decrypting password entry: $e');
@@ -136,7 +149,7 @@ class PasswordDatabaseService {
       final List<PasswordEntry> matchingPasswords = [];
       for (final encryptedEntry in results) {
         try {
-          final decryptedEntry = _encryptionService.decryptPasswordEntry(encryptedEntry, vaultKey);
+          final decryptedEntry = _encryptionService.decryptPasswordEntry(encryptedEntry, vaultKey, aad: _aad);
           final title = decryptedEntry['title'] as String;
           final username = decryptedEntry['username'] as String;
           final url = decryptedEntry['url'] as String;
@@ -203,9 +216,9 @@ class PasswordDatabaseService {
 
   // Close database
   Future<void> close() async {
-    if (_database != null) {
-      await _database!.close();
-      _database = null;
+    for (final db in _dbByVault.values) {
+      await db.close();
     }
+    _dbByVault.clear();
   }
 }

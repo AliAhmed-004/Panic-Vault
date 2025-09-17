@@ -4,6 +4,7 @@ import '../providers/auth_provider.dart';
 import '../providers/password_provider.dart';
 import '../models/password_entry.dart';
 import 'auth_page.dart';
+import 'settings_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -24,7 +25,7 @@ class _HomePageState extends State<HomePage> {
       // Set the vault key in the password provider
       final vaultKey = authProvider.getCurrentVaultKey();
       if (vaultKey != null) {
-        passwordProvider.setVaultKey(vaultKey);
+        passwordProvider.setVaultKey(vaultKey, type: authProvider.vaultType, encryptionContext: authProvider.encryptionContext);
         passwordProvider.loadPasswords();
       }
     });
@@ -38,6 +39,15 @@ class _HomePageState extends State<HomePage> {
         backgroundColor: Colors.grey[900],
         foregroundColor: Colors.white,
         actions: [
+          IconButton(
+            icon: const Icon(Icons.settings),
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (context) => const SettingsPage()),
+              );
+            },
+            tooltip: 'Settings',
+          ),
           IconButton(
             icon: const Icon(Icons.search),
             onPressed: () {

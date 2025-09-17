@@ -61,7 +61,8 @@ class _AuthPageState extends State<AuthPage> {
         _successMessage = 'Initializing vault... This may take a moment for security.';
       });
       
-      final success = await _secureVaultService.initializeVault(_passwordController.text);
+      // Initialize REAL vault by default here. Decoy can be added later via settings
+      final success = await _secureVaultService.initializeVault(VaultType.real, _passwordController.text);
       
       if (success) {
         setState(() {
@@ -98,10 +99,10 @@ class _AuthPageState extends State<AuthPage> {
     try {
       // Show progress message
       setState(() {
-        _successMessage = 'Unlocking vault... This should be quick!';
+        _successMessage = 'Unlocking vault...';
       });
       
-      final result = await _secureVaultService.unlockVault(_passwordController.text);
+      final result = await _secureVaultService.unlockVaultAny(_passwordController.text);
       
       if (result.success) {
         // Set the vault as unlocked in the provider
@@ -115,7 +116,7 @@ class _AuthPageState extends State<AuthPage> {
         }
       } else if (result.locked) {
         setState(() {
-          _errorMessage = 'Too many failed attempts. Try again in ${result.lockoutSeconds} seconds.';
+          _errorMessage = 'Too many failed attempts. Try again in ${result.lockoutSeconds} seconds (${result.lockoutSeconds! / 60} minutes).';
         });
       } else if (result.error != null) {
         setState(() {
