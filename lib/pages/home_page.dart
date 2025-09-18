@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/password_provider.dart';
@@ -538,67 +539,166 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _viewPassword(BuildContext context, PasswordEntry password) {
+    bool showPassword = false;
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: Colors.grey[850],
-        title: Text(
-          password.title.isNotEmpty ? password.title : 'Untitled',
-          style: const TextStyle(color: Colors.white),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildInfoRow('Username', password.username),
-            _buildInfoRow('Password', password.password, isPassword: true),
-            if (password.url.isNotEmpty) _buildInfoRow('URL', password.url),
-            if (password.notes.isNotEmpty) _buildInfoRow('Notes', password.notes),
-            if (password.tags.isNotEmpty) _buildInfoRow('Tags', password.tags.join(', ')),
-            _buildInfoRow('Created', _formatDate(password.createdAt)),
-            _buildInfoRow('Updated', _formatDate(password.updatedAt)),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Close'),
-          ),
-        ],
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            final title = password.title.isNotEmpty ? password.title : 'Untitled';
+            final username = password.username;
+            final url = password.url;
+            final isEmail = username.contains('@');
+            final visiblePassword = showPassword ? password.password : '•' * password.password.length;
+
+            return AlertDialog(
+              backgroundColor: Colors.grey[900],
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              titlePadding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+              contentPadding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
+              actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+              title: Row(
+                children: [
+                  CircleAvatar(
+                    radius: 16,
+                    backgroundColor: Colors.blue[600],
+                    child: Text(title[0].toUpperCase(), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+                        if (url.isNotEmpty)
+                          Text(url, style: TextStyle(color: Colors.grey[500], fontSize: 12), overflow: TextOverflow.ellipsis),
+                      ],
+                    ),
+                  )
+                ],
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Username/email row
+                  ListTile(
+                    dense: true,
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(Icons.person_outline, color: Colors.white),
+                    title: Text(
+                      username.isNotEmpty ? username : 'No username',
+                      style: const TextStyle(color: Colors.white),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (isEmail)
+                          IconButton(
+                            tooltip: 'Copy email',
+                            icon: const Icon(Icons.alternate_email, color: Colors.white),
+                            onPressed: username.isEmpty ? null : () => _copyToClipboard(context, 'Email', username),
+                          ),
+                        IconButton(
+                          tooltip: 'Copy username',
+                          icon: const Icon(Icons.content_copy, color: Colors.white),
+                          onPressed: username.isEmpty ? null : () => _copyToClipboard(context, 'Username', username),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Divider(color: Colors.white10),
+                  // Password row
+                  ListTile(
+                    dense: true,
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(Icons.lock_outline, color: Colors.white),
+                    title: Text(
+                      visiblePassword,
+                      style: const TextStyle(color: Colors.white, letterSpacing: 0.5),
+                      overflow: TextOverflow.fade,
+                      maxLines: 1,
+                      softWrap: false,
+                    ),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          tooltip: showPassword ? 'Hide password' : 'Show password',
+                          icon: Icon(showPassword ? Icons.visibility_off : Icons.visibility, color: Colors.white),
+                          onPressed: () => setState(() => showPassword = !showPassword),
+                        ),
+                        IconButton(
+                          tooltip: 'Copy password',
+                          icon: const Icon(Icons.content_copy, color: Colors.white),
+                          onPressed: password.password.isEmpty ? null : () => _copyToClipboard(context, 'Password', password.password),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (password.notes.isNotEmpty) ...[
+                    const Divider(color: Colors.white10),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text('Notes', style: TextStyle(color: Colors.grey[400], fontSize: 12)),
+                    ),
+                    const SizedBox(height: 6),
+                    Container(
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        color: Colors.grey[850],
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: Colors.white10),
+                      ),
+                      padding: const EdgeInsets.all(12),
+                      child: Text(
+                        password.notes,
+                        style: const TextStyle(color: Colors.white, fontSize: 13, height: 1.3),
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text('Updated ${_formatDate(password.updatedAt)}', style: TextStyle(color: Colors.grey[500], fontSize: 11)),
+                      ),
+                      if (password.tags.isNotEmpty)
+                        Icon(Icons.label_outline, size: 14, color: Colors.grey[500]),
+                      if (password.tags.isNotEmpty) const SizedBox(width: 4),
+                      if (password.tags.isNotEmpty)
+                        Flexible(
+                          child: Text(password.tags.join(', '), style: TextStyle(color: Colors.grey[500], fontSize: 11), overflow: TextOverflow.ellipsis),
+                        ),
+                    ],
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('Close'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _copyToClipboard(BuildContext context, String label, String value) {
+    Clipboard.setData(ClipboardData(text: value));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('$label copied to clipboard'),
+        duration: const Duration(milliseconds: 1200),
+        backgroundColor: Colors.blue[600],
       ),
     );
   }
 
-  Widget _buildInfoRow(String label, String value, {bool isPassword = false}) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 80,
-            child: Text(
-              '$label:',
-              style: TextStyle(
-                color: Colors.grey[400],
-                fontWeight: FontWeight.bold,
-                fontSize: 12,
-              ),
-            ),
-          ),
-          Expanded(
-            child: Text(
-              value,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 12,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  
 
   String _formatDate(DateTime date) {
     return '${date.day}/${date.month}/${date.year} ${date.hour}:${date.minute.toString().padLeft(2, '0')}';
