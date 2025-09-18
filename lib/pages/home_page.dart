@@ -52,11 +52,12 @@ class _HomePageState extends State<HomePage> {
           IconButton(
             icon: const Icon(Icons.search),
             onPressed: () {
-              // TODO: Implement search functionality
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Search functionality coming soon!'),
-                  backgroundColor: Colors.blue,
+              final provider = context.read<PasswordProvider>();
+              showSearch(
+                context: context,
+                delegate: _PasswordSearchDelegate(
+                  provider: provider,
+                  onView: (entry) => _viewPassword(context, entry),
                 ),
               );
             },
@@ -748,6 +749,117 @@ class _HomePageState extends State<HomePage> {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _PasswordSearchDelegate extends SearchDelegate<PasswordEntry?> {
+  final PasswordProvider provider;
+  final void Function(PasswordEntry entry) onView;
+
+  _PasswordSearchDelegate({required this.provider, required this.onView})
+      : super(searchFieldLabel: 'Search by title');
+
+  List<PasswordEntry> _filterByTitle(String q) {
+    final queryLower = q.trim().toLowerCase();
+    if (queryLower.isEmpty) return provider.passwords;
+    return provider.passwords
+        .where((p) => (p.title).toLowerCase().contains(queryLower))
+        .toList();
+  }
+
+  @override
+  ThemeData appBarTheme(BuildContext context) {
+    final base = Theme.of(context);
+    return base.copyWith(
+      appBarTheme: base.appBarTheme.copyWith(
+        backgroundColor: Colors.grey[900],
+        foregroundColor: Colors.white,
+      ),
+      inputDecorationTheme: const InputDecorationTheme(border: InputBorder.none),
+      textTheme: base.textTheme.apply(bodyColor: Colors.white, displayColor: Colors.white),
+    );
+  }
+
+  @override
+  Widget buildSuggestions(BuildContext context) {
+    final items = _filterByTitle(query);
+    return _buildList(context, items);
+  }
+
+  @override
+  Widget buildResults(BuildContext context) {
+    final items = _filterByTitle(query);
+    return _buildList(context, items);
+  }
+
+  Widget _buildList(BuildContext context, List<PasswordEntry> items) {
+    if (items.isEmpty) {
+      return Center(
+        child: Text('No matches', style: TextStyle(color: Colors.grey[500])),
+      );
+    }
+    return ListView.separated(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      itemCount: items.length,
+      separatorBuilder: (_, __) => const SizedBox(height: 8),
+      itemBuilder: (context, index) {
+        final p = items[index];
+        final title = p.title.isNotEmpty ? p.title : 'Untitled';
+        return Card(
+          color: Colors.grey[900],
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+            side: const BorderSide(color: Colors.white10),
+          ),
+          child: ListTile(
+            leading: CircleAvatar(
+              radius: 16,
+              backgroundColor: Colors.blue[600],
+              child: Text(title[0].toUpperCase(),
+                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            ),
+            title: Text(title,
+                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                overflow: TextOverflow.ellipsis),
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (p.username.isNotEmpty)
+                  Text(p.username, style: TextStyle(color: Colors.grey[400], fontSize: 12), overflow: TextOverflow.ellipsis),
+                if (p.url.isNotEmpty)
+                  Text(p.url, style: TextStyle(color: Colors.grey[500], fontSize: 11), overflow: TextOverflow.ellipsis),
+              ],
+            ),
+            onTap: () {
+              close(context, p);
+              onView(p);
+            },
+          ),
+        );
+      },
+    );
+  }
+
+  @override
+  List<Widget>? buildActions(BuildContext context) {
+    return [
+      if (query.isNotEmpty)
+        IconButton(
+          tooltip: 'Clear',
+          icon: const Icon(Icons.clear),
+          onPressed: () => query = '',
+        ),
+    ];
+  }
+
+  @override
+  Widget? buildLeading(BuildContext context) {
+    return IconButton(
+      tooltip: 'Back',
+      icon: const Icon(Icons.arrow_back),
+      onPressed: () => close(context, null),
     );
   }
 }
