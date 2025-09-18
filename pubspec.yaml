@@ -49,6 +49,10 @@ dependencies:
   # Database
   sqflite: ^2.3.0
   path: ^1.8.3
+    
+  # CSV import and file picking
+  csv: ^5.1.1
+  file_picker: ^8.1.2
 
 dev_dependencies:
   flutter_test:

@@ -3,6 +3,8 @@ import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import '../models/password_entry.dart';
 import 'password_encryption_service.dart';
+import 'package:crypto/crypto.dart' as crypto;
+import 'dart:convert';
 
 enum ActiveVaultDb { real, decoy }
 
@@ -51,6 +53,7 @@ class PasswordDatabaseService {
         encrypted_url TEXT NOT NULL,
         encrypted_notes TEXT NOT NULL,
         encrypted_tags TEXT NOT NULL,
+        fingerprint TEXT NOT NULL UNIQUE,
         created_at INTEGER NOT NULL,
         updated_at INTEGER NOT NULL
       )
@@ -66,10 +69,21 @@ class PasswordDatabaseService {
       final entryMap = entry.toMap();
       final encryptedEntry = _encryptionService.encryptPasswordEntry(entryMap, vaultKey, aad: _aad);
 
+      // Compute fingerprint from plaintext fields (normalized)
+      final fingerprint = _computeFingerprint(
+        title: entry.title,
+        username: entry.username,
+        url: entry.url,
+        vaultKey: vaultKey,
+      );
+
       // Insert or update in database
       await db.insert(
         'passwords',
-        encryptedEntry,
+        {
+          ...encryptedEntry,
+          'fingerprint': fingerprint,
+        },
         conflictAlgorithm: ConflictAlgorithm.replace,
       );
     } finally {
@@ -83,6 +97,58 @@ class PasswordDatabaseService {
         entry.tags.join(','),
       ]);
     }
+  }
+
+  // Save password entry for imports: ignore on duplicate fingerprint
+  Future<bool> savePasswordImport(PasswordEntry entry, Uint8List vaultKey) async {
+    final db = await database;
+
+    try {
+      final entryMap = entry.toMap();
+      final encryptedEntry = _encryptionService.encryptPasswordEntry(entryMap, vaultKey, aad: _aad);
+
+      final fingerprint = _computeFingerprint(
+        title: entry.title,
+        username: entry.username,
+        url: entry.url,
+        vaultKey: vaultKey,
+      );
+
+      final row = {
+        ...encryptedEntry,
+        'fingerprint': fingerprint,
+      };
+
+      final id = await db.insert(
+        'passwords',
+        row,
+        conflictAlgorithm: ConflictAlgorithm.ignore,
+      );
+      return id != 0; // id == 0 when ignored in sqflite
+    } finally {
+      _encryptionService.clearSensitiveData([
+        entry.title,
+        entry.username,
+        entry.password,
+        entry.url,
+        entry.notes,
+        entry.tags.join(','),
+      ]);
+    }
+  }
+
+  // Compute deterministic, per-vault fingerprint for duplicate detection
+  String _computeFingerprint({
+    required String title,
+    required String username,
+    required String url,
+    required Uint8List vaultKey,
+  }) {
+    String normalize(String s) => s.trim().toLowerCase();
+    final data = '${normalize(title)}|${normalize(username)}|${normalize(url)}';
+    final hmac = crypto.Hmac(crypto.sha256, vaultKey);
+    final digest = hmac.convert(utf8.encode(data));
+    return digest.toString();
   }
 
   // Get password entry by ID

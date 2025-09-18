@@ -3,6 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../services/secure_vault_service.dart';
+import '../providers/password_provider.dart';
+import '../services/csv_import_service.dart';
+import 'package:file_picker/file_picker.dart';
+import 'dart:convert';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -223,6 +227,16 @@ class _SettingsPageState extends State<SettingsPage> {
                 onTap: _onVersionTapped,
               ),
             ),
+            const SizedBox(height: 12),
+            Card(
+              color: Colors.grey[850],
+              child: ListTile(
+                title: const Text('Import from Dashlane (CSV)', style: TextStyle(color: Colors.white)),
+                subtitle: Text('Preview first 5 entries before importing', style: TextStyle(color: Colors.grey[400])),
+                trailing: const Icon(Icons.upload_file, color: Colors.white),
+                onTap: _onImportTapped,
+              ),
+            ),
           ],
         ),
       ),
@@ -233,5 +247,190 @@ class _SettingsPageState extends State<SettingsPage> {
   void dispose() {
     _tapResetTimer?.cancel();
     super.dispose();
+  }
+
+  Future<void> _onImportTapped() async {
+    final passwordProvider = context.read<PasswordProvider>();
+    if (!passwordProvider.isVaultUnlocked) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Unlock the vault before importing.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      return;
+    }
+
+    try {
+      final picked = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['csv', 'txt'],
+        withData: true,
+      );
+      if (picked == null || picked.files.isEmpty) return; // cancelled
+
+      final file = picked.files.first;
+      String content;
+      if (file.bytes != null) {
+        try {
+          content = utf8.decode(file.bytes!);
+        } catch (_) {
+          content = latin1.decode(file.bytes!);
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Could not read file bytes.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        return;
+      }
+
+      // Parse and map rows for preview
+      final csvService = CsvImportService();
+      final rows = csvService.parseDashlaneCsv(content);
+      if (rows.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('CSV appears to be empty or invalid.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        return;
+      }
+      final mapped = rows.map(csvService.mapDashlaneRowToEntryFields).toList();
+      final preview = mapped.take(5).toList();
+
+      if (!mounted) return;
+      _showImportPreviewDialog(preview, onConfirm: () async {
+        final outcome = await passwordProvider.importDashlaneCsv(content);
+        if (!mounted) return;
+        Navigator.of(context).pop();
+        if (outcome.error == null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Imported: ${outcome.imported}, Skipped: ${outcome.skipped}'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Import failed: ${outcome.error}'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      });
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Import error: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  void _showImportPreviewDialog(List<Map<String, String>> preview, {required Future<void> Function() onConfirm}) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: Colors.grey[900],
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+          contentPadding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
+          actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+          title: Row(
+            children: const [
+              Icon(Icons.preview, color: Colors.white, size: 20),
+              SizedBox(width: 8),
+              Text('Review import', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+            ],
+          ),
+          content: SizedBox(
+            width: 520,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Previewing ${preview.length < 5 ? preview.length : 5} of ${preview.length} item(s).',
+                  style: TextStyle(color: Colors.grey[400], fontSize: 12),
+                ),
+                const SizedBox(height: 12),
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxHeight: 360),
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    itemCount: preview.length > 5 ? 5 : preview.length,
+                    separatorBuilder: (_, __) => const Divider(height: 1, color: Colors.white10),
+                    itemBuilder: (context, index) {
+                      final item = preview[index];
+                      final title = (item['title']?.trim().isNotEmpty == true) ? item['title']!.trim() : 'Untitled';
+                      final username = (item['username'] ?? '').trim();
+                      final url = (item['url'] ?? '').trim();
+                      return ListTile(
+                        dense: true,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                        leading: CircleAvatar(
+                          radius: 16,
+                          backgroundColor: Colors.blue[600],
+                          child: Text(title[0].toUpperCase(), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                        ),
+                        title: Text(
+                          title,
+                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 14),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            if (username.isNotEmpty)
+                              Text(username, style: TextStyle(color: Colors.grey[400], fontSize: 12), overflow: TextOverflow.ellipsis),
+                            if (url.isNotEmpty)
+                              Text(url, style: TextStyle(color: Colors.grey[500], fontSize: 11), overflow: TextOverflow.ellipsis),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton.icon(
+              onPressed: () async {
+                await onConfirm();
+              },
+              icon: const Icon(Icons.file_download_done),
+              label: const Text('Import All'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blue[600],
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+            )
+          ],
+        );
+      },
+    );
   }
 }

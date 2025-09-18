@@ -227,100 +227,93 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildPasswordCard(BuildContext context, PasswordEntry password, PasswordProvider provider) {
+    final title = password.title.isNotEmpty ? password.title : 'Untitled';
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
-      color: Colors.grey[850],
-      child: ListTile(
-        leading: CircleAvatar(
-          backgroundColor: Colors.blue[600],
-          child: Text(
-            password.title.isNotEmpty ? password.title[0].toUpperCase() : '?',
-            style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ),
-        title: Text(
-          password.title.isNotEmpty ? password.title : 'Untitled',
-          style: const TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              password.username.isNotEmpty ? password.username : 'No username',
-              style: TextStyle(
-                color: Colors.grey[400],
-                fontSize: 12,
+      color: Colors.grey[900],
+      elevation: 0,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14), side: BorderSide(color: Colors.white10)),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: () => _viewPassword(context, password),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+          child: ListTile(
+            contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+            leading: CircleAvatar(
+              radius: 18,
+              backgroundColor: Colors.blue[600],
+              child: Text(
+                title[0].toUpperCase(),
+                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
               ),
             ),
-            if (password.url.isNotEmpty)
-              Text(
-                password.url,
-                style: TextStyle(
-                  color: Colors.grey[500],
-                  fontSize: 11,
-                ),
-              ),
-          ],
-        ),
-        trailing: PopupMenuButton<String>(
-          icon: const Icon(Icons.more_vert, color: Colors.white),
-          onSelected: (value) {
-            switch (value) {
-              case 'view':
-                _viewPassword(context, password);
-                break;
-              case 'edit':
-                // TODO: Implement edit functionality
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Edit functionality coming soon!'),
-                    backgroundColor: Colors.blue,
+            title: Text(
+              title,
+              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 15),
+              overflow: TextOverflow.ellipsis,
+            ),
+            subtitle: Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    password.username.isNotEmpty ? password.username : 'No username',
+                    style: TextStyle(color: Colors.grey[400], fontSize: 12),
+                    overflow: TextOverflow.ellipsis,
                   ),
-                );
-                break;
-              case 'delete':
-                _deletePassword(context, password, provider);
-                break;
-            }
-          },
-          itemBuilder: (context) => [
-            const PopupMenuItem(
-              value: 'view',
-              child: Row(
-                children: [
-                  Icon(Icons.visibility),
-                  SizedBox(width: 8),
-                  Text('View'),
+                  if (password.url.isNotEmpty)
+                    Text(
+                      password.url,
+                      style: TextStyle(color: Colors.grey[500], fontSize: 11),
+                      overflow: TextOverflow.ellipsis,
+                    ),
                 ],
               ),
             ),
-            const PopupMenuItem(
-              value: 'edit',
-              child: Row(
-                children: [
-                  Icon(Icons.edit),
-                  SizedBox(width: 8),
-                  Text('Edit'),
-                ],
-              ),
+            trailing: PopupMenuButton<String>(
+              icon: const Icon(Icons.more_vert, color: Colors.white),
+              onSelected: (value) {
+                switch (value) {
+                  case 'view':
+                    _viewPassword(context, password);
+                    break;
+                  case 'edit':
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Edit functionality coming soon!'),
+                        backgroundColor: Colors.blue,
+                      ),
+                    );
+                    break;
+                  case 'delete':
+                    _deletePassword(context, password, provider);
+                    break;
+                }
+              },
+              itemBuilder: (context) => const [
+                PopupMenuItem(
+                  value: 'view',
+                  child: Row(
+                    children: [Icon(Icons.visibility), SizedBox(width: 8), Text('View')],
+                  ),
+                ),
+                PopupMenuItem(
+                  value: 'edit',
+                  child: Row(
+                    children: [Icon(Icons.edit), SizedBox(width: 8), Text('Edit')],
+                  ),
+                ),
+                PopupMenuItem(
+                  value: 'delete',
+                  child: Row(
+                    children: [Icon(Icons.delete, color: Colors.red), SizedBox(width: 8), Text('Delete', style: TextStyle(color: Colors.red))],
+                  ),
+                ),
+              ],
             ),
-            const PopupMenuItem(
-              value: 'delete',
-              child: Row(
-                children: [
-                  Icon(Icons.delete, color: Colors.red),
-                  SizedBox(width: 8),
-                  Text('Delete', style: TextStyle(color: Colors.red)),
-                ],
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );

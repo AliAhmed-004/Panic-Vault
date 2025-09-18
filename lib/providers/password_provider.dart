@@ -2,9 +2,11 @@ import 'package:flutter/foundation.dart';
 import '../models/password_entry.dart';
 import '../services/password_database_service.dart';
 import '../services/secure_vault_service.dart';
+import '../services/csv_import_service.dart';
 
 class PasswordProvider extends ChangeNotifier {
   final PasswordDatabaseService _databaseService = PasswordDatabaseService();
+  final CsvImportService _csvImportService = CsvImportService();
   Uint8List? _currentVaultKey;
   Uint8List? _encryptionContext;
   
@@ -210,5 +212,74 @@ class PasswordProvider extends ChangeNotifier {
   // Refresh passwords
   Future<void> refresh() async {
     await loadPasswords();
+  }
+
+  // Import passwords from Dashlane CSV content
+  Future<({int imported, int skipped, String? error})> importDashlaneCsv(String csvContent) async {
+    if (_currentVaultKey == null) {
+      _setError('Vault must be unlocked to import passwords');
+      return (imported: 0, skipped: 0, error: 'Vault locked');
+    }
+
+    _setLoading(true);
+    _clearError();
+
+    try {
+      final rows = _csvImportService.parseDashlaneCsv(csvContent);
+      int imported = 0;
+      int skipped = 0;
+
+      for (final row in rows) {
+        try {
+          final mapped = _csvImportService.mapDashlaneRowToEntryFields(row);
+
+          // Validate minimal required fields
+          final title = mapped['title']?.trim() ?? '';
+          final username = mapped['username']?.trim() ?? '';
+          final password = mapped['password']?.trim() ?? '';
+
+          if (password.isEmpty) {
+            skipped++;
+            continue;
+          }
+
+          final entry = PasswordEntry(
+            id: generateId(),
+            title: title.isNotEmpty
+                ? title
+                : (mapped['url']?.trim().isNotEmpty == true
+                    ? mapped['url']!.trim()
+                    : (username.isNotEmpty ? username : 'Imported Item')),
+            username: username,
+            password: password,
+            url: mapped['url']?.trim() ?? '',
+            notes: mapped['notes']?.trim() ?? '',
+            tags: (mapped['tags']?.trim().isNotEmpty == true)
+                ? mapped['tags']!.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList()
+                : const [],
+          );
+
+          final inserted = await _databaseService.savePasswordImport(entry, _currentVaultKey!);
+          if (inserted) {
+            imported++;
+          } else {
+            // duplicate skipped by UNIQUE fingerprint
+            skipped++;
+          }
+        } catch (_) {
+          skipped++;
+          continue;
+        }
+      }
+
+      await loadPasswords();
+      return (imported: imported, skipped: skipped, error: null);
+    } catch (e) {
+      final msg = 'Failed to import CSV: $e';
+      _setError(msg);
+      return (imported: 0, skipped: 0, error: msg);
+    } finally {
+      _setLoading(false);
+    }
   }
 }
