@@ -209,14 +209,35 @@ class _HomePageState extends State<HomePage> {
                     ],
                   ),
                 ),
-                // Password list
+                // Password list (grouped by date)
                 Expanded(
-                  child: ListView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    itemCount: passwordProvider.passwords.length,
-                    itemBuilder: (context, index) {
-                      final password = passwordProvider.passwords[index];
-                      return _buildPasswordCard(context, password, passwordProvider);
+                  child: Builder(
+                    builder: (context) {
+                      final sectioned = _buildSectionedList(passwordProvider.passwords);
+                      return ListView.builder(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        itemCount: sectioned.length,
+                        itemBuilder: (context, index) {
+                          final item = sectioned[index];
+                          if (item.isHeader) {
+                            return Padding(
+                              padding: const EdgeInsets.only(top: 12, bottom: 8),
+                              child: Text(
+                                item.header!,
+                                style: TextStyle(
+                                  color: Colors.grey[400],
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  letterSpacing: 0.6,
+                                ),
+                              ),
+                            );
+                          } else {
+                            final password = item.entry!;
+                            return _buildPasswordCard(context, password, passwordProvider);
+                          }
+                        },
+                      );
                     },
                   ),
                 ),
@@ -226,6 +247,38 @@ class _HomePageState extends State<HomePage> {
         ),
       ),
     );
+  }
+
+  List<_SectionItem> _buildSectionedList(List<PasswordEntry> items) {
+    // Sort by updatedAt descending
+    final sorted = [...items]..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+    final List<_SectionItem> out = [];
+    DateTime? currentDay;
+    for (final e in sorted) {
+      final day = DateTime(e.updatedAt.year, e.updatedAt.month, e.updatedAt.day);
+      if (currentDay == null || !_isSameDay(day, currentDay)) {
+        currentDay = day;
+        out.add(_SectionItem.header(_sectionTitle(day)));
+      }
+      out.add(_SectionItem.entry(e));
+    }
+    return out;
+  }
+
+  bool _isSameDay(DateTime a, DateTime b) => a.year == b.year && a.month == b.month && a.day == b.day;
+
+  String _sectionTitle(DateTime day) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final yesterday = today.subtract(const Duration(days: 1));
+    if (_isSameDay(day, today)) return 'Today';
+    if (_isSameDay(day, yesterday)) return 'Yesterday';
+    // Format as e.g., Mon, Sep 18, 2025
+    const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    final wd = weekdays[day.weekday - 1];
+    final mo = months[day.month - 1];
+    return '$wd, $mo ${day.day}, ${day.year}';
   }
 
   Widget _buildPasswordCard(BuildContext context, PasswordEntry password, PasswordProvider provider) {
@@ -571,6 +624,7 @@ class _HomePageState extends State<HomePage> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+                        // Text(username, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
                         if (url.isNotEmpty)
                           Text(url, style: TextStyle(color: Colors.grey[500], fontSize: 12), overflow: TextOverflow.ellipsis),
                       ],
@@ -594,12 +648,6 @@ class _HomePageState extends State<HomePage> {
                     trailing: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        if (isEmail)
-                          IconButton(
-                            tooltip: 'Copy email',
-                            icon: const Icon(Icons.alternate_email, color: Colors.white),
-                            onPressed: username.isEmpty ? null : () => _copyToClipboard(context, 'Email', username),
-                          ),
                         IconButton(
                           tooltip: 'Copy username',
                           icon: const Icon(Icons.content_copy, color: Colors.white),
@@ -751,6 +799,20 @@ class _HomePageState extends State<HomePage> {
       ),
     );
   }
+}
+
+class _SectionItem {
+  final String? header;
+  final PasswordEntry? entry;
+  final bool isHeader;
+
+  const _SectionItem.header(this.header)
+      : entry = null,
+        isHeader = true;
+
+  const _SectionItem.entry(this.entry)
+      : header = null,
+        isHeader = false;
 }
 
 class _PasswordSearchDelegate extends SearchDelegate<PasswordEntry?> {
