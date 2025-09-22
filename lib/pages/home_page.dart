@@ -602,7 +602,6 @@ class _HomePageState extends State<HomePage> {
             final title = password.title.isNotEmpty ? password.title : 'Untitled';
             final username = password.username;
             final url = password.url;
-            final isEmail = username.contains('@');
             final visiblePassword = showPassword ? password.password : '•' * password.password.length;
 
             return AlertDialog(

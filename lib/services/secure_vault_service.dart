@@ -13,7 +13,7 @@ import 'package:cryptography/cryptography.dart' as cryptography;
 
 // --- Security Constants ---
 // Argon2id parameters (balance security and performance)
-const int ARGON2_MEMORY_KIB = 131072; // 128 MiB
+const int ARGON2_MEMORY_KIB = 65536; // 64 MiB
 const int ARGON2_ITERATIONS = 3;
 const int ARGON2_PARALLELISM = 2;
 const int MAX_LOGIN_ATTEMPTS = 5;
