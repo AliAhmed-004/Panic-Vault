@@ -402,9 +402,9 @@ class _AuthPageState extends State<AuthPage> {
                               ],
                             ),
                             const SizedBox(height: 8),
-                                                         Text(
-                               '• 100,000 PBKDF2 iterations\n'
-                               '• AES-GCM encryption\n'
+                            Text(
+                               '• AES-256-GCM Encryption\n'
+                               '• Argon2id key derivation\n'
                                '• Rate limiting protection\n'
                                '• Memory clearing\n'
                                '• Background processing',
