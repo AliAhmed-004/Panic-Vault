@@ -22,11 +22,15 @@ class _HomePageState extends State<HomePage> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final authProvider = context.read<AuthProvider>();
       final passwordProvider = context.read<PasswordProvider>();
-      
+
       // Set the vault key in the password provider
       final vaultKey = authProvider.getCurrentVaultKey();
       if (vaultKey != null) {
-        passwordProvider.setVaultKey(vaultKey, type: authProvider.vaultType, encryptionContext: authProvider.encryptionContext);
+        passwordProvider.setVaultKey(
+          vaultKey,
+          type: authProvider.vaultType,
+          encryptionContext: authProvider.encryptionContext,
+        );
         passwordProvider.loadPasswords();
       }
     });
@@ -83,10 +87,7 @@ class _HomePageState extends State<HomePage> {
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [
-              Colors.grey[900]!,
-              Colors.grey[800]!,
-            ],
+            colors: [Colors.grey[900]!, Colors.grey[800]!],
           ),
         ),
         child: Consumer<PasswordProvider>(
@@ -104,11 +105,7 @@ class _HomePageState extends State<HomePage> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(
-                      Icons.error,
-                      size: 64,
-                      color: Colors.red[400],
-                    ),
+                    Icon(Icons.error, size: 64, color: Colors.red[400]),
                     const SizedBox(height: 16),
                     Text(
                       'Error Loading Passwords',
@@ -121,10 +118,7 @@ class _HomePageState extends State<HomePage> {
                     const SizedBox(height: 8),
                     Text(
                       passwordProvider.error!,
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey[400],
-                      ),
+                      style: TextStyle(fontSize: 14, color: Colors.grey[400]),
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 16),
@@ -142,11 +136,7 @@ class _HomePageState extends State<HomePage> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(
-                      Icons.password,
-                      size: 64,
-                      color: Colors.blue[400],
-                    ),
+                    Icon(Icons.password, size: 64, color: Colors.blue[400]),
                     const SizedBox(height: 24),
                     Text(
                       'No Passwords Saved',
@@ -159,10 +149,7 @@ class _HomePageState extends State<HomePage> {
                     const SizedBox(height: 16),
                     Text(
                       'Add your first password to get started',
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: Colors.grey[400],
-                      ),
+                      style: TextStyle(fontSize: 16, color: Colors.grey[400]),
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 32),
@@ -173,7 +160,10 @@ class _HomePageState extends State<HomePage> {
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.blue[600],
                         foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 24,
+                          vertical: 12,
+                        ),
                       ),
                     ),
                   ],
@@ -213,7 +203,9 @@ class _HomePageState extends State<HomePage> {
                 Expanded(
                   child: Builder(
                     builder: (context) {
-                      final sectioned = _buildSectionedList(passwordProvider.passwords);
+                      final sectioned = _buildSectionedList(
+                        passwordProvider.passwords,
+                      );
                       return ListView.builder(
                         padding: const EdgeInsets.symmetric(horizontal: 16),
                         itemCount: sectioned.length,
@@ -221,7 +213,10 @@ class _HomePageState extends State<HomePage> {
                           final item = sectioned[index];
                           if (item.isHeader) {
                             return Padding(
-                              padding: const EdgeInsets.only(top: 12, bottom: 8),
+                              padding: const EdgeInsets.only(
+                                top: 12,
+                                bottom: 8,
+                              ),
                               child: Text(
                                 item.header!,
                                 style: TextStyle(
@@ -234,7 +229,11 @@ class _HomePageState extends State<HomePage> {
                             );
                           } else {
                             final password = item.entry!;
-                            return _buildPasswordCard(context, password, passwordProvider);
+                            return _buildPasswordCard(
+                              context,
+                              password,
+                              passwordProvider,
+                            );
                           }
                         },
                       );
@@ -251,11 +250,16 @@ class _HomePageState extends State<HomePage> {
 
   List<_SectionItem> _buildSectionedList(List<PasswordEntry> items) {
     // Sort by updatedAt descending
-    final sorted = [...items]..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+    final sorted = [...items]
+      ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
     final List<_SectionItem> out = [];
     DateTime? currentDay;
     for (final e in sorted) {
-      final day = DateTime(e.updatedAt.year, e.updatedAt.month, e.updatedAt.day);
+      final day = DateTime(
+        e.updatedAt.year,
+        e.updatedAt.month,
+        e.updatedAt.day,
+      );
       if (currentDay == null || !_isSameDay(day, currentDay)) {
         currentDay = day;
         out.add(_SectionItem.header(_sectionTitle(day)));
@@ -265,7 +269,8 @@ class _HomePageState extends State<HomePage> {
     return out;
   }
 
-  bool _isSameDay(DateTime a, DateTime b) => a.year == b.year && a.month == b.month && a.day == b.day;
+  bool _isSameDay(DateTime a, DateTime b) =>
+      a.year == b.year && a.month == b.month && a.day == b.day;
 
   String _sectionTitle(DateTime day) {
     final now = DateTime.now();
@@ -275,37 +280,67 @@ class _HomePageState extends State<HomePage> {
     if (_isSameDay(day, yesterday)) return 'Yesterday';
     // Format as e.g., Mon, Sep 18, 2025
     const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
     final wd = weekdays[day.weekday - 1];
     final mo = months[day.month - 1];
     return '$wd, $mo ${day.day}, ${day.year}';
   }
 
-  Widget _buildPasswordCard(BuildContext context, PasswordEntry password, PasswordProvider provider) {
+  Widget _buildPasswordCard(
+    BuildContext context,
+    PasswordEntry password,
+    PasswordProvider provider,
+  ) {
     final title = password.title.isNotEmpty ? password.title : 'Untitled';
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       color: Colors.grey[900],
       elevation: 0,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14), side: BorderSide(color: Colors.white10)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
+        side: BorderSide(color: Colors.white10),
+      ),
       child: InkWell(
         borderRadius: BorderRadius.circular(14),
         onTap: () => _viewPassword(context, password),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
           child: ListTile(
-            contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 8,
+              vertical: 6,
+            ),
             leading: CircleAvatar(
               radius: 18,
               backgroundColor: Colors.blue[600],
               child: Text(
                 title[0].toUpperCase(),
-                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
             title: Text(
               title,
-              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 15),
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+                fontSize: 15,
+              ),
               overflow: TextOverflow.ellipsis,
             ),
             subtitle: Padding(
@@ -314,7 +349,9 @@ class _HomePageState extends State<HomePage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    password.username.isNotEmpty ? password.username : 'No username',
+                    password.username.isNotEmpty
+                        ? password.username
+                        : 'No username',
                     style: TextStyle(color: Colors.grey[400], fontSize: 12),
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -351,19 +388,31 @@ class _HomePageState extends State<HomePage> {
                 PopupMenuItem(
                   value: 'view',
                   child: Row(
-                    children: [Icon(Icons.visibility), SizedBox(width: 8), Text('View')],
+                    children: [
+                      Icon(Icons.visibility),
+                      SizedBox(width: 8),
+                      Text('View'),
+                    ],
                   ),
                 ),
                 PopupMenuItem(
                   value: 'edit',
                   child: Row(
-                    children: [Icon(Icons.edit), SizedBox(width: 8), Text('Edit')],
+                    children: [
+                      Icon(Icons.edit),
+                      SizedBox(width: 8),
+                      Text('Edit'),
+                    ],
                   ),
                 ),
                 PopupMenuItem(
                   value: 'delete',
                   child: Row(
-                    children: [Icon(Icons.delete, color: Colors.red), SizedBox(width: 8), Text('Delete', style: TextStyle(color: Colors.red))],
+                    children: [
+                      Icon(Icons.delete, color: Colors.red),
+                      SizedBox(width: 8),
+                      Text('Delete', style: TextStyle(color: Colors.red)),
+                    ],
                   ),
                 ),
               ],
@@ -421,7 +470,7 @@ class _HomePageState extends State<HomePage> {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    
+
                     // Username field
                     TextField(
                       controller: usernameController,
@@ -438,7 +487,7 @@ class _HomePageState extends State<HomePage> {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    
+
                     // Password field with visibility toggle
                     TextField(
                       controller: passwordController,
@@ -455,7 +504,9 @@ class _HomePageState extends State<HomePage> {
                         ),
                         suffixIcon: IconButton(
                           icon: Icon(
-                            isPasswordVisible ? Icons.visibility : Icons.visibility_off,
+                            isPasswordVisible
+                                ? Icons.visibility
+                                : Icons.visibility_off,
                             color: Colors.grey,
                           ),
                           onPressed: () {
@@ -467,7 +518,7 @@ class _HomePageState extends State<HomePage> {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    
+
                     // URL field
                     TextField(
                       controller: urlController,
@@ -484,7 +535,7 @@ class _HomePageState extends State<HomePage> {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    
+
                     // Notes field
                     TextField(
                       controller: notesController,
@@ -502,7 +553,7 @@ class _HomePageState extends State<HomePage> {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    
+
                     // Tags field
                     TextField(
                       controller: tagsController,
@@ -555,7 +606,12 @@ class _HomePageState extends State<HomePage> {
                       notes: notesController.text.trim(),
                       tags: tagsController.text.trim().isEmpty
                           ? []
-                          : tagsController.text.trim().split(',').map((tag) => tag.trim()).where((tag) => tag.isNotEmpty).toList(),
+                          : tagsController.text
+                                .trim()
+                                .split(',')
+                                .map((tag) => tag.trim())
+                                .where((tag) => tag.isNotEmpty)
+                                .toList(),
                     );
 
                     // Add password
@@ -571,7 +627,9 @@ class _HomePageState extends State<HomePage> {
                       } else {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
-                            content: Text('Failed to add password: ${provider.error}'),
+                            content: Text(
+                              'Failed to add password: ${provider.error}',
+                            ),
                             backgroundColor: Colors.red,
                           ),
                         );
@@ -599,14 +657,20 @@ class _HomePageState extends State<HomePage> {
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setState) {
-            final title = password.title.isNotEmpty ? password.title : 'Untitled';
+            final title = password.title.isNotEmpty
+                ? password.title
+                : 'Untitled';
             final username = password.username;
             final url = password.url;
-            final visiblePassword = showPassword ? password.password : '•' * password.password.length;
+            final visiblePassword = showPassword
+                ? password.password
+                : '•' * password.password.length;
 
             return AlertDialog(
               backgroundColor: Colors.grey[900],
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
               titlePadding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
               contentPadding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
               actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
@@ -615,20 +679,39 @@ class _HomePageState extends State<HomePage> {
                   CircleAvatar(
                     radius: 16,
                     backgroundColor: Colors.blue[600],
-                    child: Text(title[0].toUpperCase(), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    child: Text(
+                      title[0].toUpperCase(),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+                        Text(
+                          title,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                         // Text(username, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
                         if (url.isNotEmpty)
-                          Text(url, style: TextStyle(color: Colors.grey[500], fontSize: 12), overflow: TextOverflow.ellipsis),
+                          Text(
+                            url,
+                            style: TextStyle(
+                              color: Colors.grey[500],
+                              fontSize: 12,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
                       ],
                     ),
-                  )
+                  ),
                 ],
               ),
               content: Column(
@@ -638,7 +721,10 @@ class _HomePageState extends State<HomePage> {
                   ListTile(
                     dense: true,
                     contentPadding: EdgeInsets.zero,
-                    leading: const Icon(Icons.person_outline, color: Colors.white),
+                    leading: const Icon(
+                      Icons.person_outline,
+                      color: Colors.white,
+                    ),
                     title: Text(
                       username.isNotEmpty ? username : 'No username',
                       style: const TextStyle(color: Colors.white),
@@ -649,8 +735,17 @@ class _HomePageState extends State<HomePage> {
                       children: [
                         IconButton(
                           tooltip: 'Copy username',
-                          icon: const Icon(Icons.content_copy, color: Colors.white),
-                          onPressed: username.isEmpty ? null : () => _copyToClipboard(context, 'Username', username),
+                          icon: const Icon(
+                            Icons.content_copy,
+                            color: Colors.white,
+                          ),
+                          onPressed: username.isEmpty
+                              ? null
+                              : () => _copyToClipboard(
+                                  context,
+                                  'Username',
+                                  username,
+                                ),
                         ),
                       ],
                     ),
@@ -660,10 +755,16 @@ class _HomePageState extends State<HomePage> {
                   ListTile(
                     dense: true,
                     contentPadding: EdgeInsets.zero,
-                    leading: const Icon(Icons.lock_outline, color: Colors.white),
+                    leading: const Icon(
+                      Icons.lock_outline,
+                      color: Colors.white,
+                    ),
                     title: Text(
                       visiblePassword,
-                      style: const TextStyle(color: Colors.white, letterSpacing: 0.5),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        letterSpacing: 0.5,
+                      ),
                       overflow: TextOverflow.fade,
                       maxLines: 1,
                       softWrap: false,
@@ -672,14 +773,31 @@ class _HomePageState extends State<HomePage> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         IconButton(
-                          tooltip: showPassword ? 'Hide password' : 'Show password',
-                          icon: Icon(showPassword ? Icons.visibility_off : Icons.visibility, color: Colors.white),
-                          onPressed: () => setState(() => showPassword = !showPassword),
+                          tooltip: showPassword
+                              ? 'Hide password'
+                              : 'Show password',
+                          icon: Icon(
+                            showPassword
+                                ? Icons.visibility_off
+                                : Icons.visibility,
+                            color: Colors.white,
+                          ),
+                          onPressed: () =>
+                              setState(() => showPassword = !showPassword),
                         ),
                         IconButton(
                           tooltip: 'Copy password',
-                          icon: const Icon(Icons.content_copy, color: Colors.white),
-                          onPressed: password.password.isEmpty ? null : () => _copyToClipboard(context, 'Password', password.password),
+                          icon: const Icon(
+                            Icons.content_copy,
+                            color: Colors.white,
+                          ),
+                          onPressed: password.password.isEmpty
+                              ? null
+                              : () => _copyToClipboard(
+                                  context,
+                                  'Password',
+                                  password.password,
+                                ),
                         ),
                       ],
                     ),
@@ -688,7 +806,10 @@ class _HomePageState extends State<HomePage> {
                     const Divider(color: Colors.white10),
                     Align(
                       alignment: Alignment.centerLeft,
-                      child: Text('Notes', style: TextStyle(color: Colors.grey[400], fontSize: 12)),
+                      child: Text(
+                        'Notes',
+                        style: TextStyle(color: Colors.grey[400], fontSize: 12),
+                      ),
                     ),
                     const SizedBox(height: 6),
                     Container(
@@ -701,7 +822,11 @@ class _HomePageState extends State<HomePage> {
                       padding: const EdgeInsets.all(12),
                       child: Text(
                         password.notes,
-                        style: const TextStyle(color: Colors.white, fontSize: 13, height: 1.3),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 13,
+                          height: 1.3,
+                        ),
                       ),
                     ),
                   ],
@@ -709,14 +834,31 @@ class _HomePageState extends State<HomePage> {
                   Row(
                     children: [
                       Expanded(
-                        child: Text('Updated ${_formatDate(password.updatedAt)}', style: TextStyle(color: Colors.grey[500], fontSize: 11)),
+                        child: Text(
+                          'Updated ${_formatDate(password.updatedAt)}',
+                          style: TextStyle(
+                            color: Colors.grey[500],
+                            fontSize: 11,
+                          ),
+                        ),
                       ),
                       if (password.tags.isNotEmpty)
-                        Icon(Icons.label_outline, size: 14, color: Colors.grey[500]),
+                        Icon(
+                          Icons.label_outline,
+                          size: 14,
+                          color: Colors.grey[500],
+                        ),
                       if (password.tags.isNotEmpty) const SizedBox(width: 4),
                       if (password.tags.isNotEmpty)
                         Flexible(
-                          child: Text(password.tags.join(', '), style: TextStyle(color: Colors.grey[500], fontSize: 11), overflow: TextOverflow.ellipsis),
+                          child: Text(
+                            password.tags.join(', '),
+                            style: TextStyle(
+                              color: Colors.grey[500],
+                              fontSize: 11,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
                     ],
                   ),
@@ -746,13 +888,15 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  
-
   String _formatDate(DateTime date) {
     return '${date.day}/${date.month}/${date.year} ${date.hour}:${date.minute.toString().padLeft(2, '0')}';
   }
 
-  void _deletePassword(BuildContext context, PasswordEntry password, PasswordProvider provider) {
+  void _deletePassword(
+    BuildContext context,
+    PasswordEntry password,
+    PasswordProvider provider,
+  ) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -784,7 +928,9 @@ class _HomePageState extends State<HomePage> {
                 } else {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text('Failed to delete password: ${provider.error}'),
+                      content: Text(
+                        'Failed to delete password: ${provider.error}',
+                      ),
                       backgroundColor: Colors.red,
                     ),
                   );
@@ -805,13 +951,9 @@ class _SectionItem {
   final PasswordEntry? entry;
   final bool isHeader;
 
-  const _SectionItem.header(this.header)
-      : entry = null,
-        isHeader = true;
+  const _SectionItem.header(this.header) : entry = null, isHeader = true;
 
-  const _SectionItem.entry(this.entry)
-      : header = null,
-        isHeader = false;
+  const _SectionItem.entry(this.entry) : header = null, isHeader = false;
 }
 
 class _PasswordSearchDelegate extends SearchDelegate<PasswordEntry?> {
@@ -819,7 +961,7 @@ class _PasswordSearchDelegate extends SearchDelegate<PasswordEntry?> {
   final void Function(PasswordEntry entry) onView;
 
   _PasswordSearchDelegate({required this.provider, required this.onView})
-      : super(searchFieldLabel: 'Search by title');
+    : super(searchFieldLabel: 'Search by title');
 
   List<PasswordEntry> _filterByTitle(String q) {
     final queryLower = q.trim().toLowerCase();
@@ -837,8 +979,13 @@ class _PasswordSearchDelegate extends SearchDelegate<PasswordEntry?> {
         backgroundColor: Colors.grey[900],
         foregroundColor: Colors.white,
       ),
-      inputDecorationTheme: const InputDecorationTheme(border: InputBorder.none),
-      textTheme: base.textTheme.apply(bodyColor: Colors.white, displayColor: Colors.white),
+      inputDecorationTheme: const InputDecorationTheme(
+        border: InputBorder.none,
+      ),
+      textTheme: base.textTheme.apply(
+        bodyColor: Colors.white,
+        displayColor: Colors.white,
+      ),
     );
   }
 
@@ -878,19 +1025,37 @@ class _PasswordSearchDelegate extends SearchDelegate<PasswordEntry?> {
             leading: CircleAvatar(
               radius: 16,
               backgroundColor: Colors.blue[600],
-              child: Text(title[0].toUpperCase(),
-                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              child: Text(
+                title[0].toUpperCase(),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ),
-            title: Text(title,
-                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
-                overflow: TextOverflow.ellipsis),
+            title: Text(
+              title,
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+              ),
+              overflow: TextOverflow.ellipsis,
+            ),
             subtitle: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 if (p.username.isNotEmpty)
-                  Text(p.username, style: TextStyle(color: Colors.grey[400], fontSize: 12), overflow: TextOverflow.ellipsis),
+                  Text(
+                    p.username,
+                    style: TextStyle(color: Colors.grey[400], fontSize: 12),
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 if (p.url.isNotEmpty)
-                  Text(p.url, style: TextStyle(color: Colors.grey[500], fontSize: 11), overflow: TextOverflow.ellipsis),
+                  Text(
+                    p.url,
+                    style: TextStyle(color: Colors.grey[500], fontSize: 11),
+                    overflow: TextOverflow.ellipsis,
+                  ),
               ],
             ),
             onTap: () {
@@ -924,3 +1089,4 @@ class _PasswordSearchDelegate extends SearchDelegate<PasswordEntry?> {
     );
   }
 }
+

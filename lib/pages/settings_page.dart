@@ -7,6 +7,10 @@ import '../providers/password_provider.dart';
 import '../services/csv_import_service.dart';
 import 'package:file_picker/file_picker.dart';
 import 'dart:convert';
+import 'dart:io';
+import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
+import '../services/csv_export_service.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -196,6 +200,73 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
+  Future<void> _onExportTapped() async {
+    final passwordProvider = context.read<PasswordProvider>();
+    if (!passwordProvider.isVaultUnlocked) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Unlock the vault before exporting.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      return;
+    }
+
+    try {
+      // Ask user for location to save file
+      // On Android/iOS, FilePicker.saveFile requires bytes. On desktop, it returns a path
+      // and we write the file ourselves.
+      final csvService = CsvExportService();
+      final csv = csvService.exportPasswordsToCsv(passwordProvider.passwords);
+      // Normalize newlines to CRLF for better compatibility with mobile Office/Excel
+      final normalizedLf = csv.replaceAll('\r\n', '\n');
+      final normalized = normalizedLf.replaceAll('\n', '\r\n');
+      final baseBytes = utf8.encode(normalized);
+      // Prepend UTF-8 BOM on mobile to help some apps (Excel/Office) detect encoding
+      final needsBom = !kIsWeb && (Platform.isAndroid || Platform.isIOS);
+      final csvBytes = Uint8List.fromList(
+        needsBom ? [0xEF, 0xBB, 0xBF, ...baseBytes] : baseBytes,
+      );
+
+      final result = await FilePicker.platform.saveFile(
+        dialogTitle: 'Export Passwords as CSV',
+        fileName: 'passwords_export.csv',
+        type: FileType.custom,
+        allowedExtensions: ['csv'],
+        // Required on Android/iOS. Safe to provide on desktop too; plugin may still
+        // return a path and expect us to write the file manually.
+        bytes: csvBytes,
+      );
+      if (result == null) return; // cancelled
+
+      // On desktop platforms, write the file to the returned path.
+      if (!kIsWeb && (Platform.isWindows || Platform.isLinux || Platform.isMacOS)) {
+        final file = File(result);
+        await file.writeAsBytes(csvBytes, flush: true);
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Passwords exported successfully.'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Export error: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -235,6 +306,16 @@ class _SettingsPageState extends State<SettingsPage> {
                 subtitle: Text('Preview first 5 entries before importing', style: TextStyle(color: Colors.grey[400])),
                 trailing: const Icon(Icons.upload_file, color: Colors.white),
                 onTap: _onImportTapped,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Card(
+              color: Colors.grey[850],
+              child: ListTile(
+                title: const Text('Export Passwords (CSV)', style: TextStyle(color: Colors.white)),
+                subtitle: Text('Save all passwords as a CSV file', style: TextStyle(color: Colors.grey[400])),
+                trailing: const Icon(Icons.download, color: Colors.white),
+                onTap: _onExportTapped,
               ),
             ),
           ],
