@@ -214,11 +214,12 @@ class PasswordProvider extends ChangeNotifier {
     await loadPasswords();
   }
 
-  // Import passwords from Dashlane CSV content
-  Future<({int imported, int skipped, String? error})> importDashlaneCsv(String csvContent) async {
+  // Import passwords from CSV content (Dashlane-specific mapping retained, but supports generic CSV).
+  // Returns counts and a list of skipped details: [{title, username, url, reason}]
+  Future<({int imported, int skipped, String? error, List<Map<String, String>> skippedDetails})> importDashlaneCsv(String csvContent) async {
     if (_currentVaultKey == null) {
       _setError('Vault must be unlocked to import passwords');
-      return (imported: 0, skipped: 0, error: 'Vault locked');
+      return (imported: 0, skipped: 0, error: 'Vault locked', skippedDetails: const <Map<String, String>>[]);
     }
 
     _setLoading(true);
@@ -228,6 +229,7 @@ class PasswordProvider extends ChangeNotifier {
       final rows = _csvImportService.parseDashlaneCsv(csvContent);
       int imported = 0;
       int skipped = 0;
+      final List<Map<String, String>> skippedDetails = [];
 
       for (final row in rows) {
         try {
@@ -240,6 +242,12 @@ class PasswordProvider extends ChangeNotifier {
 
           if (password.isEmpty) {
             skipped++;
+            skippedDetails.add({
+              'title': title.isNotEmpty ? title : (mapped['url']?.trim() ?? ''),
+              'username': username,
+              'url': mapped['url']?.trim() ?? '',
+              'reason': 'Empty password',
+            });
             continue;
           }
 
@@ -265,19 +273,31 @@ class PasswordProvider extends ChangeNotifier {
           } else {
             // duplicate skipped by UNIQUE fingerprint
             skipped++;
+            skippedDetails.add({
+              'title': entry.title,
+              'username': entry.username,
+              'url': entry.url,
+              'reason': 'Duplicate entry',
+            });
           }
-        } catch (_) {
+        } catch (e) {
           skipped++;
+          skippedDetails.add({
+            'title': (row['title'] ?? row['name'] ?? row['url'] ?? 'Unknown').toString(),
+            'username': (row['username'] ?? row['user'] ?? row['email'] ?? '').toString(),
+            'url': (row['url'] ?? row['website'] ?? '').toString(),
+            'reason': 'Parse/validation error',
+          });
           continue;
         }
       }
 
       await loadPasswords();
-      return (imported: imported, skipped: skipped, error: null);
+      return (imported: imported, skipped: skipped, error: null, skippedDetails: skippedDetails);
     } catch (e) {
       final msg = 'Failed to import CSV: $e';
       _setError(msg);
-      return (imported: 0, skipped: 0, error: msg);
+      return (imported: 0, skipped: 0, error: msg, skippedDetails: const <Map<String, String>>[]);
     } finally {
       _setLoading(false);
     }

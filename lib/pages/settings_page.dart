@@ -200,6 +200,99 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
+  Future<void> _showImportResultDialog({
+    required int imported,
+    required int skipped,
+    required List<Map<String, String>> skippedDetails,
+  }) async {
+    if (!mounted) return;
+    await showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: Colors.grey[900],
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+          contentPadding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
+          actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+          title: Row(
+            children: const [
+              Icon(Icons.assignment_turned_in, color: Colors.white, size: 20),
+              SizedBox(width: 8),
+              Text('Import results', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+            ],
+          ),
+          content: SizedBox(
+            width: 520,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Imported: $imported, Skipped: $skipped',
+                  style: TextStyle(color: Colors.grey[300]),
+                ),
+                const SizedBox(height: 12),
+                if (skippedDetails.isNotEmpty)
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxHeight: 360),
+                    child: ListView.separated(
+                      shrinkWrap: true,
+                      itemCount: skippedDetails.length,
+                      separatorBuilder: (_, __) => const Divider(height: 1, color: Colors.white10),
+                      itemBuilder: (context, index) {
+                        final item = skippedDetails[index];
+                        final title = (item['title'] ?? '').trim();
+                        final username = (item['username'] ?? '').trim();
+                        final url = (item['url'] ?? '').trim();
+                        final reason = (item['reason'] ?? 'Skipped').trim();
+                        final displayTitle = title.isNotEmpty
+                            ? title
+                            : (url.isNotEmpty ? url : (username.isNotEmpty ? username : 'Untitled'));
+                        return ListTile(
+                          dense: true,
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                          leading: CircleAvatar(
+                            radius: 16,
+                            backgroundColor: Colors.red[700],
+                            child: const Icon(Icons.block, color: Colors.white, size: 16),
+                          ),
+                          title: Text(
+                            displayTitle,
+                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 14),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              if (username.isNotEmpty)
+                                Text('User: $username', style: TextStyle(color: Colors.grey[400], fontSize: 12), overflow: TextOverflow.ellipsis),
+                              if (url.isNotEmpty)
+                                Text(url, style: TextStyle(color: Colors.grey[500], fontSize: 11), overflow: TextOverflow.ellipsis),
+                              Text('Reason: $reason', style: TextStyle(color: Colors.red[200], fontSize: 11)),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+                  )
+                else
+                  Text('No skipped items.', style: TextStyle(color: Colors.grey[400])),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Close'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   Future<void> _onExportTapped() async {
     final passwordProvider = context.read<PasswordProvider>();
     if (!passwordProvider.isVaultUnlocked) {
@@ -302,7 +395,7 @@ class _SettingsPageState extends State<SettingsPage> {
             Card(
               color: Colors.grey[850],
               child: ListTile(
-                title: const Text('Import from Dashlane (CSV)', style: TextStyle(color: Colors.white)),
+                title: const Text('Import Passwords (CSV)', style: TextStyle(color: Colors.white)),
                 subtitle: Text('Preview first 5 entries before importing', style: TextStyle(color: Colors.grey[400])),
                 trailing: const Icon(Icons.upload_file, color: Colors.white),
                 onTap: _onImportTapped,
@@ -312,7 +405,7 @@ class _SettingsPageState extends State<SettingsPage> {
             Card(
               color: Colors.grey[850],
               child: ListTile(
-                title: const Text('Export Passwords (CSV)', style: TextStyle(color: Colors.white)),
+                title: const Text('Export Passwords (plain-text CSV)', style: TextStyle(color: Colors.white)),
                 subtitle: Text('Save all passwords as a CSV file', style: TextStyle(color: Colors.grey[400])),
                 trailing: const Icon(Icons.download, color: Colors.white),
                 onTap: _onExportTapped,
@@ -395,11 +488,10 @@ class _SettingsPageState extends State<SettingsPage> {
         if (!mounted) return;
         Navigator.of(context).pop();
         if (outcome.error == null) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Imported: ${outcome.imported}, Skipped: ${outcome.skipped}'),
-              backgroundColor: Colors.green,
-            ),
+          await _showImportResultDialog(
+            imported: outcome.imported,
+            skipped: outcome.skipped,
+            skippedDetails: outcome.skippedDetails,
           );
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
