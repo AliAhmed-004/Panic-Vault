@@ -11,6 +11,8 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import '../services/csv_export_service.dart';
+import '../services/encrypted_export_service.dart';
+import 'package:pointycastle/api.dart' show InvalidCipherTextException;
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -63,10 +65,116 @@ class _SettingsPageState extends State<SettingsPage> {
     }
   }
 
+  Future<String?> _promptForPassphrase({
+    required bool confirm,
+    required String title,
+  }) async {
+    final controller = TextEditingController();
+    final confirmController = TextEditingController();
+    bool obscure = true;
+    return await showDialog<String>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              backgroundColor: Colors.grey[900],
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              title: Text(title, style: const TextStyle(color: Colors.white)),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: controller,
+                    obscureText: obscure,
+                    style: const TextStyle(color: Colors.white),
+                    decoration: InputDecoration(
+                      labelText: 'Passphrase',
+                      labelStyle: const TextStyle(color: Colors.grey),
+                      enabledBorder: const OutlineInputBorder(
+                        borderSide: BorderSide(color: Colors.grey),
+                      ),
+                      focusedBorder: const OutlineInputBorder(
+                        borderSide: BorderSide(color: Colors.blue),
+                      ),
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          obscure ? Icons.visibility : Icons.visibility_off,
+                          color: Colors.grey,
+                        ),
+                        onPressed: () => setState(() => obscure = !obscure),
+                      ),
+                    ),
+                  ),
+                  if (confirm) ...[
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: confirmController,
+                      obscureText: obscure,
+                      style: const TextStyle(color: Colors.white),
+                      decoration: const InputDecoration(
+                        labelText: 'Confirm passphrase',
+                        labelStyle: TextStyle(color: Colors.grey),
+                        enabledBorder: OutlineInputBorder(
+                          borderSide: BorderSide(color: Colors.grey),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderSide: BorderSide(color: Colors.blue),
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(null),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    final p1 = controller.text.trim();
+                    final p2 = confirm ? confirmController.text.trim() : p1;
+                    if (p1.length < 8) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'Passphrase must be at least 8 characters',
+                          ),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                      return;
+                    }
+                    if (p1 != p2) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Passphrases do not match'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                      return;
+                    }
+                    Navigator.of(context).pop(p1);
+                  },
+                  child: const Text('Continue'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
   Future<void> _showDecoySetupDialog() async {
     final passwordController = TextEditingController();
     final confirmController = TextEditingController();
-    final vaultService = context.read<AuthProvider>().vaultService ?? SecureVaultService();
+    final vaultService =
+        context.read<AuthProvider>().vaultService ?? SecureVaultService();
 
     bool decoyExists = await vaultService.vaultExists(VaultType.decoy);
     if (decoyExists) {
@@ -88,7 +196,10 @@ class _SettingsPageState extends State<SettingsPage> {
           builder: (context, setStateDialog) {
             return AlertDialog(
               backgroundColor: Colors.grey[850],
-              title: const Text('Set Decoy Vault Password', style: TextStyle(color: Colors.white)),
+              title: const Text(
+                'Set Decoy Vault Password',
+                style: TextStyle(color: Colors.white),
+              ),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -99,8 +210,12 @@ class _SettingsPageState extends State<SettingsPage> {
                     decoration: const InputDecoration(
                       labelText: 'Decoy Password',
                       labelStyle: TextStyle(color: Colors.grey),
-                      enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: Colors.grey)),
-                      focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: Colors.blue)),
+                      enabledBorder: OutlineInputBorder(
+                        borderSide: BorderSide(color: Colors.grey),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderSide: BorderSide(color: Colors.blue),
+                      ),
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -111,8 +226,12 @@ class _SettingsPageState extends State<SettingsPage> {
                     decoration: const InputDecoration(
                       labelText: 'Confirm Password',
                       labelStyle: TextStyle(color: Colors.grey),
-                      enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: Colors.grey)),
-                      focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: Colors.blue)),
+                      enabledBorder: OutlineInputBorder(
+                        borderSide: BorderSide(color: Colors.grey),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderSide: BorderSide(color: Colors.blue),
+                      ),
                     ),
                   ),
                 ],
@@ -131,7 +250,9 @@ class _SettingsPageState extends State<SettingsPage> {
                           if (pwd.length < 8) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
-                                content: Text('Password must be at least 8 characters'),
+                                content: Text(
+                                  'Password must be at least 8 characters',
+                                ),
                                 backgroundColor: Colors.red,
                               ),
                             );
@@ -147,11 +268,14 @@ class _SettingsPageState extends State<SettingsPage> {
                             return;
                           }
                           // Prevent using same password as real vault
-                          final sameAsOther = await vaultService.isPasswordSameAsOtherVault(VaultType.decoy, pwd);
+                          final sameAsOther = await vaultService
+                              .isPasswordSameAsOtherVault(VaultType.decoy, pwd);
                           if (sameAsOther) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
-                                content: Text('Decoy password must be different from the real vault password'),
+                                content: Text(
+                                  'Decoy password must be different from the real vault password',
+                                ),
                                 backgroundColor: Colors.red,
                               ),
                             );
@@ -160,7 +284,10 @@ class _SettingsPageState extends State<SettingsPage> {
                           setStateDialog(() {
                             _isProcessing = true;
                           });
-                          final success = await vaultService.initializeVault(VaultType.decoy, pwd);
+                          final success = await vaultService.initializeVault(
+                            VaultType.decoy,
+                            pwd,
+                          );
                           setStateDialog(() {
                             _isProcessing = false;
                           });
@@ -171,7 +298,9 @@ class _SettingsPageState extends State<SettingsPage> {
                             if (mounted) {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(
-                                  content: Text('Decoy vault created. You can now unlock it.'),
+                                  content: Text(
+                                    'Decoy vault created. You can now unlock it.',
+                                  ),
                                   backgroundColor: Colors.green,
                                   duration: Duration(seconds: 3),
                                 ),
@@ -181,7 +310,9 @@ class _SettingsPageState extends State<SettingsPage> {
                             if (mounted) {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(
-                                  content: Text('Failed to create decoy vault. Try again.'),
+                                  content: Text(
+                                    'Failed to create decoy vault. Try again.',
+                                  ),
                                   backgroundColor: Colors.red,
                                 ),
                               );
@@ -189,7 +320,11 @@ class _SettingsPageState extends State<SettingsPage> {
                           }
                         },
                   child: _isProcessing
-                      ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
                       : const Text('Create'),
                 ),
               ],
@@ -212,7 +347,9 @@ class _SettingsPageState extends State<SettingsPage> {
       builder: (context) {
         return AlertDialog(
           backgroundColor: Colors.grey[900],
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
           titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
           contentPadding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
           actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
@@ -220,7 +357,13 @@ class _SettingsPageState extends State<SettingsPage> {
             children: const [
               Icon(Icons.assignment_turned_in, color: Colors.white, size: 20),
               SizedBox(width: 8),
-              Text('Import results', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+              Text(
+                'Import results',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             ],
           ),
           content: SizedBox(
@@ -240,7 +383,8 @@ class _SettingsPageState extends State<SettingsPage> {
                     child: ListView.separated(
                       shrinkWrap: true,
                       itemCount: skippedDetails.length,
-                      separatorBuilder: (_, __) => const Divider(height: 1, color: Colors.white10),
+                      separatorBuilder: (_, __) =>
+                          const Divider(height: 1, color: Colors.white10),
                       itemBuilder: (context, index) {
                         final item = skippedDetails[index];
                         final title = (item['title'] ?? '').trim();
@@ -249,28 +393,63 @@ class _SettingsPageState extends State<SettingsPage> {
                         final reason = (item['reason'] ?? 'Skipped').trim();
                         final displayTitle = title.isNotEmpty
                             ? title
-                            : (url.isNotEmpty ? url : (username.isNotEmpty ? username : 'Untitled'));
+                            : (url.isNotEmpty
+                                  ? url
+                                  : (username.isNotEmpty
+                                        ? username
+                                        : 'Untitled'));
                         return ListTile(
                           dense: true,
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 6,
+                          ),
                           leading: CircleAvatar(
                             radius: 16,
                             backgroundColor: Colors.red[700],
-                            child: const Icon(Icons.block, color: Colors.white, size: 16),
+                            child: const Icon(
+                              Icons.block,
+                              color: Colors.white,
+                              size: 16,
+                            ),
                           ),
                           title: Text(
                             displayTitle,
-                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 14),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 14,
+                            ),
                             overflow: TextOverflow.ellipsis,
                           ),
                           subtitle: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               if (username.isNotEmpty)
-                                Text('User: $username', style: TextStyle(color: Colors.grey[400], fontSize: 12), overflow: TextOverflow.ellipsis),
+                                Text(
+                                  'User: $username',
+                                  style: TextStyle(
+                                    color: Colors.grey[400],
+                                    fontSize: 12,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
                               if (url.isNotEmpty)
-                                Text(url, style: TextStyle(color: Colors.grey[500], fontSize: 11), overflow: TextOverflow.ellipsis),
-                              Text('Reason: $reason', style: TextStyle(color: Colors.red[200], fontSize: 11)),
+                                Text(
+                                  url,
+                                  style: TextStyle(
+                                    color: Colors.grey[500],
+                                    fontSize: 11,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              Text(
+                                'Reason: $reason',
+                                style: TextStyle(
+                                  color: Colors.red[200],
+                                  fontSize: 11,
+                                ),
+                              ),
                             ],
                           ),
                         );
@@ -278,7 +457,10 @@ class _SettingsPageState extends State<SettingsPage> {
                     ),
                   )
                 else
-                  Text('No skipped items.', style: TextStyle(color: Colors.grey[400])),
+                  Text(
+                    'No skipped items.',
+                    style: TextStyle(color: Colors.grey[400]),
+                  ),
               ],
             ),
           ),
@@ -335,7 +517,8 @@ class _SettingsPageState extends State<SettingsPage> {
       if (result == null) return; // cancelled
 
       // On desktop platforms, write the file to the returned path.
-      if (!kIsWeb && (Platform.isWindows || Platform.isLinux || Platform.isMacOS)) {
+      if (!kIsWeb &&
+          (Platform.isWindows || Platform.isLinux || Platform.isMacOS)) {
         final file = File(result);
         await file.writeAsBytes(csvBytes, flush: true);
       }
@@ -360,6 +543,84 @@ class _SettingsPageState extends State<SettingsPage> {
     }
   }
 
+  // Export encrypted CSV using a user-provided passphrase
+  Future<void> _onExportEncryptedTapped() async {
+    final passwordProvider = context.read<PasswordProvider>();
+    if (!passwordProvider.isVaultUnlocked) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Unlock the vault before exporting.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      return;
+    }
+
+    try {
+      final passphrase = await _promptForPassphrase(
+        confirm: true,
+        title: 'Set export passphrase',
+      );
+      if (passphrase == null) return;
+
+      final entries = passwordProvider.passwords
+          .map(
+            (e) => {
+              'title': e.title,
+              'username': e.username,
+              'password': e.password,
+              'url': e.url,
+              'notes': e.notes,
+              'tags': e.tags,
+              'created_at': e.createdAt.toIso8601String(),
+              'updated_at': e.updatedAt.toIso8601String(),
+            },
+          )
+          .toList();
+
+      final encService = EncryptedExportService();
+      final csvBytes = await encService.exportEncryptedCsv(
+        entries: entries,
+        passphrase: passphrase,
+      );
+
+      final result = await FilePicker.platform.saveFile(
+        dialogTitle: 'Export Passwords (Encrypted)',
+        fileName: 'passwords_export.pvenc.csv',
+        type: FileType.custom,
+        allowedExtensions: ['csv'],
+        bytes: csvBytes,
+      );
+      if (result == null) return;
+
+      if (!kIsWeb &&
+          (Platform.isWindows || Platform.isLinux || Platform.isMacOS)) {
+        final file = File(result);
+        await file.writeAsBytes(csvBytes, flush: true);
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Encrypted export saved.'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Encrypted export error: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -374,10 +635,7 @@ class _SettingsPageState extends State<SettingsPage> {
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [
-              Colors.grey[900]!,
-              Colors.grey[800]!,
-            ],
+            colors: [Colors.grey[900]!, Colors.grey[800]!],
           ),
         ),
         child: Column(
@@ -386,8 +644,14 @@ class _SettingsPageState extends State<SettingsPage> {
             Card(
               color: Colors.grey[850],
               child: ListTile(
-                title: const Text('App Version', style: TextStyle(color: Colors.white)),
-                subtitle: Text(_version, style: TextStyle(color: Colors.grey[400])),
+                title: const Text(
+                  'App Version',
+                  style: TextStyle(color: Colors.white),
+                ),
+                subtitle: Text(
+                  _version,
+                  style: TextStyle(color: Colors.grey[400]),
+                ),
                 onTap: _onVersionTapped,
               ),
             ),
@@ -403,8 +667,17 @@ class _SettingsPageState extends State<SettingsPage> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const ListTile(
-                          title: Text('Sort Order', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
-                          subtitle: Text('Choose how passwords are ordered on the Home screen', style: TextStyle(color: Colors.grey)),
+                          title: Text(
+                            'Sort Order',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          subtitle: Text(
+                            'Choose how passwords are ordered on the Home screen',
+                            style: TextStyle(color: Colors.grey),
+                          ),
                         ),
                         RadioListTile<SortMode>(
                           value: SortMode.dateAddedDesc,
@@ -413,7 +686,10 @@ class _SettingsPageState extends State<SettingsPage> {
                             if (val != null) provider.setSortMode(val);
                           },
                           activeColor: Colors.blue,
-                          title: const Text('Date added (newest first)', style: TextStyle(color: Colors.white)),
+                          title: const Text(
+                            'Date added (newest first)',
+                            style: TextStyle(color: Colors.white),
+                          ),
                         ),
                         RadioListTile<SortMode>(
                           value: SortMode.alphabetical,
@@ -422,7 +698,10 @@ class _SettingsPageState extends State<SettingsPage> {
                             if (val != null) provider.setSortMode(val);
                           },
                           activeColor: Colors.blue,
-                          title: const Text('Alphabetical (A–Z)', style: TextStyle(color: Colors.white)),
+                          title: const Text(
+                            'Alphabetical (A–Z)',
+                            style: TextStyle(color: Colors.white),
+                          ),
                         ),
                       ],
                     ),
@@ -434,8 +713,14 @@ class _SettingsPageState extends State<SettingsPage> {
             Card(
               color: Colors.grey[850],
               child: ListTile(
-                title: const Text('Import Passwords (CSV)', style: TextStyle(color: Colors.white)),
-                subtitle: Text('Preview first 5 entries before importing', style: TextStyle(color: Colors.grey[400])),
+                title: const Text(
+                  'Import Passwords (CSV)',
+                  style: TextStyle(color: Colors.white),
+                ),
+                subtitle: Text(
+                  'Preview first 5 entries before importing',
+                  style: TextStyle(color: Colors.grey[400]),
+                ),
                 trailing: const Icon(Icons.upload_file, color: Colors.white),
                 onTap: _onImportTapped,
               ),
@@ -444,10 +729,32 @@ class _SettingsPageState extends State<SettingsPage> {
             Card(
               color: Colors.grey[850],
               child: ListTile(
-                title: const Text('Export Passwords (plain-text CSV)', style: TextStyle(color: Colors.white)),
-                subtitle: Text('Save all passwords as a CSV file', style: TextStyle(color: Colors.grey[400])),
+                title: const Text(
+                  'Export Passwords (plain-text CSV)',
+                  style: TextStyle(color: Colors.white),
+                ),
+                subtitle: Text(
+                  'Save all passwords as a CSV file',
+                  style: TextStyle(color: Colors.grey[400]),
+                ),
                 trailing: const Icon(Icons.download, color: Colors.white),
                 onTap: _onExportTapped,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Card(
+              color: Colors.grey[850],
+              child: ListTile(
+                title: const Text(
+                  'Export Passwords (Encrypted)',
+                  style: TextStyle(color: Colors.white),
+                ),
+                subtitle: Text(
+                  'Protected with a passphrase (.pvenc.csv)',
+                  style: TextStyle(color: Colors.grey[400]),
+                ),
+                trailing: const Icon(Icons.lock, color: Colors.white),
+                onTap: _onExportEncryptedTapped,
               ),
             ),
           ],
@@ -504,7 +811,52 @@ class _SettingsPageState extends State<SettingsPage> {
         return;
       }
 
-      // Parse and map rows for preview
+      // Detect encrypted export vs plain CSV
+      final encService = EncryptedExportService();
+      if (encService.isEncryptedCsv(content)) {
+        // Prompt for passphrase, decrypt, and import
+        final passphrase = await _promptForPassphrase(
+          confirm: false,
+          title: 'Enter export passphrase',
+        );
+        if (passphrase == null) return;
+        try {
+          final entries = await encService.decryptEncryptedCsv(
+            content: content,
+            passphrase: passphrase,
+          );
+          final outcome = await context
+              .read<PasswordProvider>()
+              .importDecryptedEntries(entries);
+          if (!mounted) return;
+          await _showImportResultDialog(
+            imported: outcome.imported,
+            skipped: outcome.skipped,
+            skippedDetails: outcome.skippedDetails,
+          );
+        } on InvalidCipherTextException {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Incorrect passphrase. Please try again.'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+        } catch (e) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Decryption failed. ${e.toString()}'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+        }
+        return;
+      }
+
+      // Plain CSV: Parse and map rows for preview
       final csvService = CsvImportService();
       final rows = csvService.parseDashlaneCsv(content);
       if (rows.isEmpty) {
@@ -522,25 +874,28 @@ class _SettingsPageState extends State<SettingsPage> {
       final preview = mapped.take(5).toList();
 
       if (!mounted) return;
-      _showImportPreviewDialog(preview, onConfirm: () async {
-        final outcome = await passwordProvider.importDashlaneCsv(content);
-        if (!mounted) return;
-        Navigator.of(context).pop();
-        if (outcome.error == null) {
-          await _showImportResultDialog(
-            imported: outcome.imported,
-            skipped: outcome.skipped,
-            skippedDetails: outcome.skippedDetails,
-          );
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Import failed: ${outcome.error}'),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
-      });
+      _showImportPreviewDialog(
+        preview,
+        onConfirm: () async {
+          final outcome = await passwordProvider.importDashlaneCsv(content);
+          if (!mounted) return;
+          Navigator.of(context).pop();
+          if (outcome.error == null) {
+            await _showImportResultDialog(
+              imported: outcome.imported,
+              skipped: outcome.skipped,
+              skippedDetails: outcome.skippedDetails,
+            );
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Import failed: ${outcome.error}'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+        },
+      );
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -553,14 +908,19 @@ class _SettingsPageState extends State<SettingsPage> {
     }
   }
 
-  void _showImportPreviewDialog(List<Map<String, String>> preview, {required Future<void> Function() onConfirm}) {
+  void _showImportPreviewDialog(
+    List<Map<String, String>> preview, {
+    required Future<void> Function() onConfirm,
+  }) {
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (context) {
         return AlertDialog(
           backgroundColor: Colors.grey[900],
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
           titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
           contentPadding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
           actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
@@ -568,7 +928,13 @@ class _SettingsPageState extends State<SettingsPage> {
             children: const [
               Icon(Icons.preview, color: Colors.white, size: 20),
               SizedBox(width: 8),
-              Text('Review import', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+              Text(
+                'Review import',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             ],
           ),
           content: SizedBox(
@@ -587,32 +953,62 @@ class _SettingsPageState extends State<SettingsPage> {
                   child: ListView.separated(
                     shrinkWrap: true,
                     itemCount: preview.length > 5 ? 5 : preview.length,
-                    separatorBuilder: (_, __) => const Divider(height: 1, color: Colors.white10),
+                    separatorBuilder: (_, __) =>
+                        const Divider(height: 1, color: Colors.white10),
                     itemBuilder: (context, index) {
                       final item = preview[index];
-                      final title = (item['title']?.trim().isNotEmpty == true) ? item['title']!.trim() : 'Untitled';
+                      final title = (item['title']?.trim().isNotEmpty == true)
+                          ? item['title']!.trim()
+                          : 'Untitled';
                       final username = (item['username'] ?? '').trim();
                       final url = (item['url'] ?? '').trim();
                       return ListTile(
                         dense: true,
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 6,
+                        ),
                         leading: CircleAvatar(
                           radius: 16,
                           backgroundColor: Colors.blue[600],
-                          child: Text(title[0].toUpperCase(), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                          child: Text(
+                            title[0].toUpperCase(),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                         ),
                         title: Text(
                           title,
-                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 14),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14,
+                          ),
                           overflow: TextOverflow.ellipsis,
                         ),
                         subtitle: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             if (username.isNotEmpty)
-                              Text(username, style: TextStyle(color: Colors.grey[400], fontSize: 12), overflow: TextOverflow.ellipsis),
+                              Text(
+                                username,
+                                style: TextStyle(
+                                  color: Colors.grey[400],
+                                  fontSize: 12,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             if (url.isNotEmpty)
-                              Text(url, style: TextStyle(color: Colors.grey[500], fontSize: 11), overflow: TextOverflow.ellipsis),
+                              Text(
+                                url,
+                                style: TextStyle(
+                                  color: Colors.grey[500],
+                                  fontSize: 11,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
                           ],
                         ),
                       );
@@ -636,10 +1032,15 @@ class _SettingsPageState extends State<SettingsPage> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.blue[600],
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
               ),
-            )
+            ),
           ],
         );
       },

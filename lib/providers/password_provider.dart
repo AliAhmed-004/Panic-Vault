@@ -34,6 +34,113 @@ class PasswordProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  // Import passwords from a decrypted entries payload (from encrypted export)
+  Future<({int imported, int skipped, String? error, List<Map<String, String>> skippedDetails})>
+      importDecryptedEntries(List<Map<String, dynamic>> entries) async {
+    if (_currentVaultKey == null) {
+      _setError('Vault must be unlocked to import passwords');
+      return (imported: 0, skipped: 0, error: 'Vault locked', skippedDetails: const <Map<String, String>>[]);
+    }
+
+    _setLoading(true);
+    _clearError();
+
+    try {
+      int imported = 0;
+      int skipped = 0;
+      final List<Map<String, String>> skippedDetails = [];
+
+      for (final row in entries) {
+        try {
+          // Normalize fields expected in PasswordEntry
+          String s(dynamic v) => (v == null) ? '' : v.toString();
+          final title = s(row['title']).trim();
+          final username = s(row['username']).trim();
+          final password = s(row['password']).trim();
+          final url = s(row['url']).trim();
+          final notes = s(row['notes']).trim();
+          final tagsVal = row['tags'];
+          final List<String> tags = tagsVal is List
+              ? tagsVal.map((e) => e.toString().trim()).where((e) => e.isNotEmpty).toList()
+              : (s(tagsVal).isNotEmpty
+                  ? s(tagsVal)
+                      .split(',')
+                      .map((e) => e.trim())
+                      .where((e) => e.isNotEmpty)
+                      .toList()
+                  : <String>[]);
+
+          if (password.isEmpty) {
+            skipped++;
+            skippedDetails.add({
+              'title': title.isNotEmpty ? title : (url.isNotEmpty ? url : (username.isNotEmpty ? username : 'Imported Item')),
+              'username': username,
+              'url': url,
+              'reason': 'Empty password',
+            });
+            continue;
+          }
+
+          // Optional created/updated timestamps
+          DateTime? createdAt;
+          DateTime? updatedAt;
+          if (row['created_at'] != null) {
+            try { createdAt = DateTime.parse(s(row['created_at'])); } catch (_) {}
+          }
+          if (row['updated_at'] != null) {
+            try { updatedAt = DateTime.parse(s(row['updated_at'])); } catch (_) {}
+          }
+
+          final entry = PasswordEntry(
+            id: generateId(),
+            title: title.isNotEmpty
+                ? title
+                : (url.isNotEmpty
+                    ? url
+                    : (username.isNotEmpty ? username : 'Imported Item')),
+            username: username,
+            password: password,
+            url: url,
+            notes: notes,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            tags: tags,
+          );
+
+          final inserted = await _databaseService.savePasswordImport(entry, _currentVaultKey!);
+          if (inserted) {
+            imported++;
+          } else {
+            skipped++;
+            skippedDetails.add({
+              'title': entry.title,
+              'username': entry.username,
+              'url': entry.url,
+              'reason': 'Duplicate entry',
+            });
+          }
+        } catch (e) {
+          skipped++;
+          skippedDetails.add({
+            'title': (row['title'] ?? row['name'] ?? row['url'] ?? 'Unknown').toString(),
+            'username': (row['username'] ?? row['user'] ?? row['email'] ?? '').toString(),
+            'url': (row['url'] ?? row['website'] ?? '').toString(),
+            'reason': 'Parse/validation error',
+          });
+          continue;
+        }
+      }
+
+      await loadPasswords();
+      return (imported: imported, skipped: skipped, error: null, skippedDetails: skippedDetails);
+    } catch (e) {
+      final msg = 'Failed to import decrypted entries: $e';
+      _setError(msg);
+      return (imported: 0, skipped: 0, error: msg, skippedDetails: const <Map<String, String>>[]);
+    } finally {
+      _setLoading(false);
+    }
+  }
   // Set vault key (called when vault is unlocked)
   void setVaultKey(Uint8List vaultKey, {VaultType? type, Uint8List? encryptionContext}) {
     _currentVaultKey = vaultKey;
