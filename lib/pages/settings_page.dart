@@ -170,6 +170,97 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
+  // Inline validation dialog: ask for passphrase and decrypt encrypted CSV.
+  // Returns decrypted entries on success, or null on cancel.
+  Future<List<Map<String, dynamic>>?> _promptForPassphraseAndDecrypt({
+    required String content,
+  }) async {
+    final passController = TextEditingController();
+    bool obscure = true;
+    String? errorText;
+    bool working = false;
+
+    return showDialog<List<Map<String, dynamic>>?>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return StatefulBuilder(builder: (context, setState) {
+          Future<void> handleContinue() async {
+            final pass = passController.text.trim();
+            if (pass.length < 8) {
+              setState(() => errorText = 'Passphrase must be at least 8 characters');
+              return;
+            }
+            setState(() {
+              errorText = null;
+              working = true;
+            });
+            try {
+              final encService = EncryptedExportService();
+              final entries = await encService.decryptEncryptedCsv(content: content, passphrase: pass);
+              if (mounted) Navigator.of(context).pop(entries);
+            } on InvalidCipherTextException {
+              setState(() {
+                errorText = 'Incorrect passphrase. Please try again.';
+                working = false;
+              });
+            } catch (e) {
+              setState(() {
+                errorText = 'Decryption failed. ${e.toString()}';
+                working = false;
+              });
+            }
+          }
+
+          return AlertDialog(
+            backgroundColor: Colors.grey[900],
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: const Text('Enter export passphrase', style: TextStyle(color: Colors.white)),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                TextField(
+                  controller: passController,
+                  obscureText: obscure,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: InputDecoration(
+                    labelText: 'Passphrase',
+                    labelStyle: const TextStyle(color: Colors.grey),
+                    enabledBorder: const OutlineInputBorder(borderSide: BorderSide(color: Colors.grey)),
+                    focusedBorder: const OutlineInputBorder(borderSide: BorderSide(color: Colors.blue)),
+                    errorText: errorText,
+                    suffixIcon: IconButton(
+                      icon: Icon(obscure ? Icons.visibility : Icons.visibility_off, color: Colors.grey),
+                      onPressed: () => setState(() => obscure = !obscure),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Make sure you enter the passphrase you chose when exporting.',
+                  style: TextStyle(color: Colors.grey[500], fontSize: 12),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: working ? null : () => Navigator.of(context).pop(null),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: working ? null : handleContinue,
+                child: working
+                    ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                    : const Text('Continue'),
+              ),
+            ],
+          );
+        });
+      },
+    );
+  }
+
   Future<void> _showDecoySetupDialog() async {
     final passwordController = TextEditingController();
     final confirmController = TextEditingController();
@@ -814,45 +905,16 @@ class _SettingsPageState extends State<SettingsPage> {
       // Detect encrypted export vs plain CSV
       final encService = EncryptedExportService();
       if (encService.isEncryptedCsv(content)) {
-        // Prompt for passphrase, decrypt, and import
-        final passphrase = await _promptForPassphrase(
-          confirm: false,
-          title: 'Enter export passphrase',
+        // Prompt for passphrase in a dialog that validates inline
+        final decrypted = await _promptForPassphraseAndDecrypt(content: content);
+        if (decrypted == null) return; // cancelled or failed
+        final outcome = await context.read<PasswordProvider>().importDecryptedEntries(decrypted);
+        if (!mounted) return;
+        await _showImportResultDialog(
+          imported: outcome.imported,
+          skipped: outcome.skipped,
+          skippedDetails: outcome.skippedDetails,
         );
-        if (passphrase == null) return;
-        try {
-          final entries = await encService.decryptEncryptedCsv(
-            content: content,
-            passphrase: passphrase,
-          );
-          final outcome = await context
-              .read<PasswordProvider>()
-              .importDecryptedEntries(entries);
-          if (!mounted) return;
-          await _showImportResultDialog(
-            imported: outcome.imported,
-            skipped: outcome.skipped,
-            skippedDetails: outcome.skippedDetails,
-          );
-        } on InvalidCipherTextException {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Incorrect passphrase. Please try again.'),
-                backgroundColor: Colors.red,
-              ),
-            );
-          }
-        } catch (e) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Decryption failed. ${e.toString()}'),
-                backgroundColor: Colors.red,
-              ),
-            );
-          }
-        }
         return;
       }
 
