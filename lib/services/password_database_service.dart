@@ -180,7 +180,7 @@ class PasswordDatabaseService {
     try {
       final List<Map<String, dynamic>> results = await db.query(
         'passwords',
-        orderBy: 'updated_at DESC',
+        orderBy: 'created_at DESC',
       );
 
       final List<PasswordEntry> passwords = [];

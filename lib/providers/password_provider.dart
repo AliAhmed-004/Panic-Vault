@@ -4,11 +4,17 @@ import '../services/password_database_service.dart';
 import '../services/secure_vault_service.dart';
 import '../services/csv_import_service.dart';
 
+// Sorting options for password list
+enum SortMode { dateAddedDesc, alphabetical }
+
 class PasswordProvider extends ChangeNotifier {
   final PasswordDatabaseService _databaseService = PasswordDatabaseService();
   final CsvImportService _csvImportService = CsvImportService();
   Uint8List? _currentVaultKey;
   Uint8List? _encryptionContext;
+  
+  // Sorting
+  SortMode _sortMode = SortMode.dateAddedDesc;
   
   List<PasswordEntry> _passwords = [];
   bool _isLoading = false;
@@ -19,6 +25,14 @@ class PasswordProvider extends ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get error => _error;
   int get passwordCount => _passwords.length;
+  SortMode get sortMode => _sortMode;
+
+  void setSortMode(SortMode mode) {
+    if (_sortMode == mode) return;
+    _sortMode = mode;
+    _applySortInMemory();
+    notifyListeners();
+  }
 
   // Set vault key (called when vault is unlocked)
   void setVaultKey(Uint8List vaultKey, {VaultType? type, Uint8List? encryptionContext}) {
@@ -52,12 +66,24 @@ class PasswordProvider extends ChangeNotifier {
 
     try {
       _passwords = await _databaseService.getAllPasswords(_currentVaultKey!);
+      _applySortInMemory();
       notifyListeners();
     } catch (e) {
       _setError('Failed to load passwords: $e');
     } finally {
       _setLoading(false);
     }
+  }
+
+  void _applySortInMemory() {
+    if (_sortMode == SortMode.alphabetical) {
+      _passwords.sort((a, b) {
+        final at = a.title.trim().isEmpty ? a.url.trim() : a.title.trim();
+        final bt = b.title.trim().isEmpty ? b.url.trim() : b.title.trim();
+        return at.toLowerCase().compareTo(bt.toLowerCase());
+      });
+    }
+    // For dateAddedDesc, DB already returns created_at DESC; no action needed.
   }
 
   // Add new password

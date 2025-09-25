@@ -392,6 +392,45 @@ class _SettingsPageState extends State<SettingsPage> {
               ),
             ),
             const SizedBox(height: 12),
+            // Sort Order
+            Consumer<PasswordProvider>(
+              builder: (context, provider, _) {
+                return Card(
+                  color: Colors.grey[850],
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const ListTile(
+                          title: Text('Sort Order', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+                          subtitle: Text('Choose how passwords are ordered on the Home screen', style: TextStyle(color: Colors.grey)),
+                        ),
+                        RadioListTile<SortMode>(
+                          value: SortMode.dateAddedDesc,
+                          groupValue: provider.sortMode,
+                          onChanged: (val) {
+                            if (val != null) provider.setSortMode(val);
+                          },
+                          activeColor: Colors.blue,
+                          title: const Text('Date added (newest first)', style: TextStyle(color: Colors.white)),
+                        ),
+                        RadioListTile<SortMode>(
+                          value: SortMode.alphabetical,
+                          groupValue: provider.sortMode,
+                          onChanged: (val) {
+                            if (val != null) provider.setSortMode(val);
+                          },
+                          activeColor: Colors.blue,
+                          title: const Text('Alphabetical (A–Z)', style: TextStyle(color: Colors.white)),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: 12),
             Card(
               color: Colors.grey[850],
               child: ListTile(

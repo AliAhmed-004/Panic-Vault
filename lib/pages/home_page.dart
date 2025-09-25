@@ -205,6 +205,7 @@ class _HomePageState extends State<HomePage> {
                     builder: (context) {
                       final sectioned = _buildSectionedList(
                         passwordProvider.passwords,
+                        passwordProvider.sortMode,
                       );
                       return ListView.builder(
                         padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -248,17 +249,23 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  List<_SectionItem> _buildSectionedList(List<PasswordEntry> items) {
-    // Sort by updatedAt descending
+  List<_SectionItem> _buildSectionedList(List<PasswordEntry> items, SortMode sortMode) {
+    // If alphabetical, render flat list (no date headers). Items are already
+    // sorted by provider in-memory.
+    if (sortMode == SortMode.alphabetical) {
+      return items.map((e) => _SectionItem.entry(e)).toList();
+    }
+
+    // Date-added (createdAt) descending sectioned list
     final sorted = [...items]
-      ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
     final List<_SectionItem> out = [];
     DateTime? currentDay;
     for (final e in sorted) {
       final day = DateTime(
-        e.updatedAt.year,
-        e.updatedAt.month,
-        e.updatedAt.day,
+        e.createdAt.year,
+        e.createdAt.month,
+        e.createdAt.day,
       );
       if (currentDay == null || !_isSameDay(day, currentDay)) {
         currentDay = day;
