@@ -1,3 +1,4 @@
+import '../ui/toast.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -379,11 +380,11 @@ class _HomePageState extends State<HomePage> {
                     _viewPassword(context, password);
                     break;
                   case 'edit':
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Edit functionality coming soon!'),
-                        backgroundColor: Colors.blue,
-                      ),
+                    Toast.show(
+                      context,
+                      'Edit functionality coming soon! ',
+                      background: Colors.blue[700]!,
+                      icon: Icons.info_outline,
                     );
                     break;
                   case 'delete':
@@ -593,11 +594,11 @@ class _HomePageState extends State<HomePage> {
                     if (titleController.text.trim().isEmpty ||
                         usernameController.text.trim().isEmpty ||
                         passwordController.text.trim().isEmpty) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Please fill in all required fields'),
-                          backgroundColor: Colors.red,
-                        ),
+                      Toast.show(
+                        context,
+                        'Please fill in all required fields',
+                        background: Colors.red[700]!,
+                        icon: Icons.error_outline,
                       );
                       return;
                     }
@@ -625,20 +626,18 @@ class _HomePageState extends State<HomePage> {
                     provider.addPassword(newPassword).then((success) {
                       Navigator.of(context).pop();
                       if (success) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Password added successfully!'),
-                            backgroundColor: Colors.green,
-                          ),
+                        Toast.show(
+                          context,
+                          'Password added successfully!',
+                          background: Colors.green[700]!,
+                          icon: Icons.check_circle_outline,
                         );
                       } else {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              'Failed to add password: ${provider.error}',
-                            ),
-                            backgroundColor: Colors.red,
-                          ),
+                        Toast.show(
+                          context,
+                          'Failed to add password: ${provider.error}',
+                          background: Colors.red[700]!,
+                          icon: Icons.error_outline,
                         );
                       }
                     });
@@ -886,12 +885,12 @@ class _HomePageState extends State<HomePage> {
 
   void _copyToClipboard(BuildContext context, String label, String value) {
     Clipboard.setData(ClipboardData(text: value));
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('$label copied to clipboard'),
-        duration: const Duration(milliseconds: 1200),
-        backgroundColor: Colors.blue[600],
-      ),
+    Toast.show(
+      context,
+      '$label copied to clipboard',
+      background: Colors.grey[800]!,
+      icon: Icons.copy,
+      duration: const Duration(milliseconds: 1200),
     );
   }
 
@@ -926,20 +925,18 @@ class _HomePageState extends State<HomePage> {
               Navigator.of(context).pop();
               provider.deletePassword(password.id).then((success) {
                 if (success) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Password deleted successfully!'),
-                      backgroundColor: Colors.green,
-                    ),
+                  Toast.show(
+                    context,
+                    'Password deleted successfully!',
+                    background: Colors.green[700]!,
+                    icon: Icons.check_circle_outline,
                   );
                 } else {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        'Failed to delete password: ${provider.error}',
-                      ),
-                      backgroundColor: Colors.red,
-                    ),
+                  Toast.show(
+                    context,
+                    'Failed to delete password: ${provider.error}',
+                    background: Colors.red[700]!,
+                    icon: Icons.error_outline,
                   );
                 }
               });

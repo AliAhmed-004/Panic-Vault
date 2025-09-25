@@ -13,6 +13,7 @@ import 'package:flutter/foundation.dart';
 import '../services/csv_export_service.dart';
 import '../services/encrypted_export_service.dart';
 import 'package:pointycastle/api.dart' show InvalidCipherTextException;
+import '../ui/toast.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -55,13 +56,7 @@ class _SettingsPageState extends State<SettingsPage> {
       _showDecoySetupDialog();
     } else if (_tapCount >= _tapsToReveal - 3) {
       final remaining = _tapsToReveal - _tapCount;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('$remaining more taps to unlock hidden settings'),
-          duration: const Duration(milliseconds: 800),
-          backgroundColor: Colors.blue,
-        ),
-      );
+      Toast.show(context, '$remaining more taps to unlock hidden settings', background: Colors.blue[700]!, icon: Icons.info_outline);
     }
   }
 
@@ -87,6 +82,8 @@ class _SettingsPageState extends State<SettingsPage> {
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  Text("Make sure to remember your passphrase! It will be required to import the encrypted CSV file."),
+                  SizedBox(height: 8),
                   TextField(
                     controller: controller,
                     obscureText: obscure,
@@ -139,23 +136,11 @@ class _SettingsPageState extends State<SettingsPage> {
                     final p1 = controller.text.trim();
                     final p2 = confirm ? confirmController.text.trim() : p1;
                     if (p1.length < 8) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text(
-                            'Passphrase must be at least 8 characters',
-                          ),
-                          backgroundColor: Colors.red,
-                        ),
-                      );
+                      Toast.show(context, 'Passphrase must be at least 8 characters', background: Colors.red[700]!, icon: Icons.error_outline);
                       return;
                     }
                     if (p1 != p2) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Passphrases do not match'),
-                          backgroundColor: Colors.red,
-                        ),
-                      );
+                      Toast.show(context, 'Passphrases do not match', background: Colors.red[700]!, icon: Icons.error_outline);
                       return;
                     }
                     Navigator.of(context).pop(p1);
@@ -269,12 +254,7 @@ class _SettingsPageState extends State<SettingsPage> {
 
     bool decoyExists = await vaultService.vaultExists(VaultType.decoy);
     if (decoyExists) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Decoy vault already exists.'),
-          backgroundColor: Colors.green,
-        ),
-      );
+      Toast.show(context, 'Decoy vault already exists.', background: Colors.green[700]!, icon: Icons.info_outline);
       return;
     }
 
@@ -339,37 +319,18 @@ class _SettingsPageState extends State<SettingsPage> {
                           final pwd = passwordController.text.trim();
                           final conf = confirmController.text.trim();
                           if (pwd.length < 8) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text(
-                                  'Password must be at least 8 characters',
-                                ),
-                                backgroundColor: Colors.red,
-                              ),
-                            );
+                            Toast.show(context, 'Password must be at least 8 characters', background: Colors.red[700]!, icon: Icons.error_outline);
                             return;
                           }
                           if (pwd != conf) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Passwords do not match'),
-                                backgroundColor: Colors.red,
-                              ),
-                            );
+                            Toast.show(context, 'Passwords do not match', background: Colors.red[700]!, icon: Icons.error_outline);
                             return;
                           }
                           // Prevent using same password as real vault
                           final sameAsOther = await vaultService
                               .isPasswordSameAsOtherVault(VaultType.decoy, pwd);
                           if (sameAsOther) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text(
-                                  'Decoy password must be different from the real vault password',
-                                ),
-                                backgroundColor: Colors.red,
-                              ),
-                            );
+                            Toast.show(context, 'Decoy password must be different from the real vault password', background: Colors.red[700]!, icon: Icons.error_outline);
                             return;
                           }
                           setStateDialog(() {
@@ -387,26 +348,11 @@ class _SettingsPageState extends State<SettingsPage> {
                           }
                           if (success) {
                             if (mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text(
-                                    'Decoy vault created. You can now unlock it.',
-                                  ),
-                                  backgroundColor: Colors.green,
-                                  duration: Duration(seconds: 3),
-                                ),
-                              );
+                              Toast.show(context, 'Decoy vault created. You can now unlock it.', background: Colors.green[700]!, icon: Icons.check_circle_outline);
                             }
                           } else {
                             if (mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text(
-                                    'Failed to create decoy vault. Try again.',
-                                  ),
-                                  backgroundColor: Colors.red,
-                                ),
-                              );
+                              Toast.show(context, 'Failed to create decoy vault. Try again.', background: Colors.red[700]!, icon: Icons.error_outline);
                             }
                           }
                         },
@@ -570,12 +516,7 @@ class _SettingsPageState extends State<SettingsPage> {
     final passwordProvider = context.read<PasswordProvider>();
     if (!passwordProvider.isVaultUnlocked) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Unlock the vault before exporting.'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        Toast.show(context, 'Unlock the vault before exporting.', background: Colors.red[700]!, icon: Icons.lock_outline);
       }
       return;
     }
@@ -615,21 +556,11 @@ class _SettingsPageState extends State<SettingsPage> {
       }
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Passwords exported successfully.'),
-            backgroundColor: Colors.green,
-          ),
-        );
+        Toast.show(context, 'Passwords exported successfully.', background: Colors.green[700]!, icon: Icons.check_circle_outline);
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Export error: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        Toast.show(context, 'Export error: $e', background: Colors.red[700]!, icon: Icons.error_outline);
       }
     }
   }
@@ -639,13 +570,10 @@ class _SettingsPageState extends State<SettingsPage> {
     final passwordProvider = context.read<PasswordProvider>();
     if (!passwordProvider.isVaultUnlocked) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Unlock the vault before exporting.'),
-            backgroundColor: Colors.red,
-          ),
-        );
+
+        Toast.show(context, 'Unlock the vault before exporting.', background: Colors.red[700]!, icon: Icons.lock_outline);
       }
+
       return;
     }
 
@@ -693,21 +621,11 @@ class _SettingsPageState extends State<SettingsPage> {
       }
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Encrypted export saved.'),
-            backgroundColor: Colors.green,
-          ),
-        );
+        Toast.show(context, 'Encrypted export saved.', background: Colors.green[700]!, icon: Icons.check_circle_outline);
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Encrypted export error: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        Toast.show(context, 'Encrypted export error: $e', background: Colors.red[700]!, icon: Icons.error_outline);
       }
     }
   }
@@ -821,11 +739,11 @@ class _SettingsPageState extends State<SettingsPage> {
               color: Colors.grey[850],
               child: ListTile(
                 title: const Text(
-                  'Export Passwords (plain-text CSV)',
+                  'Export Passwords (.csv)',
                   style: TextStyle(color: Colors.white),
                 ),
                 subtitle: Text(
-                  'Save all passwords as a CSV file',
+                  'Plain-Text CSV file, less secure',
                   style: TextStyle(color: Colors.grey[400]),
                 ),
                 trailing: const Icon(Icons.download, color: Colors.white),
@@ -864,12 +782,7 @@ class _SettingsPageState extends State<SettingsPage> {
     final passwordProvider = context.read<PasswordProvider>();
     if (!passwordProvider.isVaultUnlocked) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Unlock the vault before importing.'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        Toast.show(context, 'Unlock the vault before importing.', background: Colors.red[700]!, icon: Icons.lock_outline);
       }
       return;
     }
@@ -892,12 +805,7 @@ class _SettingsPageState extends State<SettingsPage> {
         }
       } else {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Could not read file bytes.'),
-              backgroundColor: Colors.red,
-            ),
-          );
+          Toast.show(context, 'Could not read file bytes.', background: Colors.red[700]!, icon: Icons.error_outline);
         }
         return;
       }
@@ -923,12 +831,7 @@ class _SettingsPageState extends State<SettingsPage> {
       final rows = csvService.parseDashlaneCsv(content);
       if (rows.isEmpty) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('CSV appears to be empty or invalid.'),
-              backgroundColor: Colors.red,
-            ),
-          );
+          Toast.show(context, 'CSV appears to be empty or invalid.', background: Colors.red[700]!, icon: Icons.error_outline);
         }
         return;
       }
@@ -949,23 +852,13 @@ class _SettingsPageState extends State<SettingsPage> {
               skippedDetails: outcome.skippedDetails,
             );
           } else {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Import failed: ${outcome.error}'),
-                backgroundColor: Colors.red,
-              ),
-            );
+            Toast.show(context, 'Import failed: ${outcome.error}', background: Colors.red[700]!, icon: Icons.error_outline);
           }
         },
       );
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Import error: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        Toast.show(context, 'Import error: $e', background: Colors.red[700]!, icon: Icons.error_outline);
       }
     }
   }
