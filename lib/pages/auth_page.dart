@@ -403,11 +403,11 @@ class _AuthPageState extends State<AuthPage> {
                             ),
                             const SizedBox(height: 8),
                             Text(
-                               '• AES-256-GCM Encryption\n'
-                               '• Argon2id key derivation\n'
-                               '• Rate limiting protection\n'
-                               '• Memory clearing\n'
-                               '• Background processing',
+                               '• Bank-level security for your vault\n'
+                               '• Locked with advanced, tamper-detecting encryption\n'
+                               '• Stops rapid guess attempts (auto 5-minute cooldown)\n'
+                               '• Your secrets stay on your device\n'
+                               '• Fast and smooth — security runs behind the scenes',
                                style: TextStyle(
                                  color: Colors.grey[400],
                                  fontSize: 12,

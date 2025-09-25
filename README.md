@@ -1,22 +1,29 @@
 # Panic Vault 🔐
 
-A secure password manager built with Flutter, featuring military-grade encryption and a modern dark UI.
+A secure, offline password manager built with Flutter. Panic Vault uses modern cryptography and careful engineering to protect your data while providing a clean, responsive UI.
 
 ## Features
 
-- **🔒 Military-Grade Security**: AES-GCM encryption with 600,000 PBKDF2 iterations
-- **🛡️ Brute Force Protection**: Rate limiting with 5-minute lockout after failed attempts
-- **💾 Secure Storage**: Platform-specific secure storage for sensitive data
-- **🎨 Modern Dark UI**: Clean, professional interface with gradient backgrounds
-- **⚡ Performance Optimized**: Background thread processing for heavy cryptographic operations
+- **🔒 Strong Encryption**: AES-GCM (authenticated encryption) for vault contents and per-field data
+- **🧠 Modern Key Derivation**: Argon2id (64 MiB memory, 3 iterations, parallelism 2) to derive keys from your master password
+- **🛡️ Brute-Force Protection**: 5 failed attempts trigger a 5-minute lockout
+- **💾 Secure Storage**: Uses platform-specific secure storage to store encrypted vault data
+- **📥 CSV Import (Generic)**: Import from common CSV exports (e.g., Google Password Manager, Dashlane, etc.) with header auto-detection
+- **📤 CSV Export**: Export your passwords as plain-text CSV for portability
+- **↕️ Sorting Options**: View passwords by date-added (newest first) or alphabetically (A–Z)
+- **🎭 Decoy Vault (Optional)**: Create an alternate vault with a different password
+- **⚡ Smooth UX**: Heavy cryptography runs on a background isolate to keep the UI responsive
 
-## Security Features
+## Security Architecture
 
-- Constant-time comparisons to prevent timing attacks
-- Memory clearing of sensitive data after use
-- Secure random generation for salts and keys
-- Master password verification with secure comparison
-- Rate limiting protection against brute force attacks
+- **Key Derivation**: Argon2id via the `cryptography` package with 64 MiB memory, 3 iterations, and parallelism 2
+- **Encryption**: AES-GCM using PointyCastle with a 12-byte IV and 128-bit tag
+- **Per-Field Encryption**: Sensitive fields (title, username, password, url, notes, tags) are encrypted individually
+- **Additional Authenticated Data (AAD)**: Per-vault context can be used as AAD for additional binding
+- **Rate Limiting**: Maximum of 5 attempts, followed by a 5-minute lockout
+- **Timing Safety**: Constant-time comparisons to mitigate timing attacks
+- **Memory Hygiene**: Sensitive byte arrays are zeroed after use; strings are cleared best-effort where feasible
+- **Randomness**: Cryptographically secure random generation for salts, IVs, and keys
 
 ## Getting Started
 
@@ -39,31 +46,43 @@ A secure password manager built with Flutter, featuring military-grade encryptio
 
 ## Usage
 
-1. **First Launch**: Initialize your vault with a master password (minimum 8 characters)
-2. **Unlock**: Enter your master password to access the vault
-3. **Security**: The app automatically locks after 5 failed attempts for 5 minutes
+- **First Launch**: Initialize your vault with a master password (minimum 8 characters)
+- **Unlock**: Enter your master password to access the vault
+- **Import (CSV)**: Settings → Import Passwords (CSV). Preview the first 5 entries, then import all.
+- **Export (CSV)**: Settings → Export Passwords (plain-text CSV)
+- **Sort Order**: Settings → Sort Order → choose Date added (newest first) or Alphabetical (A–Z)
+- **Decoy Vault (Optional)**: Tap the app version in Settings multiple times to reveal hidden settings and create a decoy vault
 
 ## Project Structure
 
 ```
 lib/
-├── main.dart                    # App entry point
-├── services/
-│   └── secure_vault_service.dart # Core security implementation
+├── main.dart                         # App entry
+├── models/
+│   └── password_entry.dart           # Password entry model
 ├── providers/
-│   └── auth_provider.dart       # State management
+│   ├── auth_provider.dart            # Auth + vault state
+│   └── password_provider.dart        # Password data + sorting + import flow
+├── services/
+│   ├── secure_vault_service.dart     # Argon2id, AES-GCM, lockout, memory hygiene
+│   ├── password_database_service.dart# Sqflite storage (encrypted fields)
+│   ├── password_encryption_service.dart # Per-field AES-GCM
+│   ├── csv_import_service.dart       # Generic CSV parsing + mapping
+│   └── csv_export_service.dart       # CSV export
 └── pages/
-    ├── auth_page.dart           # Authentication UI
-    └── home_page.dart           # Main app interface
+    ├── auth_page.dart                # Initialize/unlock UI
+    ├── home_page.dart                # Password list, search, view
+    └── settings_page.dart            # Import/export, sort order, decoy vault
 ```
 
 ## Dependencies
 
-- `crypto` & `pointycastle`: Cryptography and security
-- `flutter_secure_storage`: Secure data storage
+- `cryptography`: Argon2id key derivation
+- `pointycastle`: AES-GCM encryption
+- `crypto`: SHA-256 and HMAC utilities
+- `flutter_secure_storage`: Platform-specific secure storage
+- `sqflite` + `path`: Local database
 - `provider`: State management
-- `sqflite`: Local database
+- `csv`: CSV parsing
+- `file_picker`: Cross-platform file picking/saving
 
-## License
-
-This project is part of a Final Year Project (FYP) implementation.
